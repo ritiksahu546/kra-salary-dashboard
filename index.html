@@ -1,201 +1,300 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>KRA Salary Dashboard</title>
+  <title>Combined KRA Calculator + Salary Dashboard</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f2f2f2;
-      padding: 20px;
-    }
-    h2 {
-      color: #333;
-    }
-    input, select, button {
-      padding: 10px;
-      margin: 5px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      background: #fff;
-    }
-    th, td {
-      border: 1px solid #ccc;
-      padding: 10px;
-      text-align: center;
-    }
-    .total {
-      margin-top: 20px;
-      font-weight: bold;
-      font-size: 18px;
-    }
-    footer {
-      margin-top: 30px;
-      text-align: center;
-      font-weight: bold;
-      color: #555;
-    }
+    :root{--bg:#f4f6f8;--card:#fff;--accent:#0b79d0;--accent2:#28a745}
+    *{box-sizing:border-box}
+    body{font-family:Arial,system-ui; background:var(--bg); margin:0;padding:18px;color:#222}
+    .wrap{max-width:1100px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+    .card{background:var(--card);padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(16,24,40,0.06)}
+    h2{margin:0 0 12px;font-size:18px}
+    label{display:block;font-size:13px;margin:8px 0 6px}
+    input,select,button{padding:9px;border:1px solid #d7dfe6;border-radius:8px;font-size:14px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid #e3e7ea;padding:8px;text-align:center;font-size:14px}
+    .muted{font-size:13px;color:#666}
+    .row{display:flex;gap:8px}
+    .btn{background:var(--accent);color:#fff;border:none;cursor:pointer}
+    .btn.secondary{background:#777}
+    .result{font-weight:700;margin-top:10px}
+    footer{margin-top:14px;text-align:center;color:#666;font-size:13px}
+    @media (max-width:880px){.wrap{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
 
-  <h2>👥 KRA-Based Salary Dashboard (Filter by Name)</h2>
+  <div class="wrap">
+    <!-- Calculator Card -->
+    <section class="card" aria-labelledby="calcTitle">
+      <h2 id="calcTitle">Talk Time &amp; KRA Calculator</h2>
 
-  <label for="employeeName">Select Name:</label>
-  <select id="employeeName" onchange="renderTable()"></select>
+      <button id="toggleBtn" class="btn" style="margin-bottom:10px" onclick="toggleMode()">Switch to Manual Talk Time</button>
 
-  <br/>
+      <div id="autoMode">
+        <label>Calls Handled</label>
+        <input id="calls" type="number" placeholder="e.g. 65" min="0" />
 
-  <input type="date" id="kraDate">
-  <input type="number" id="kraPercent" placeholder="Enter KRA%">
-  <button onclick="addKRA()">Add Entry</button>
+        <div class="grid2" style="margin-top:8px">
+          <div>
+            <label>Avg Talk Time — Minutes</label>
+            <input id="minutes" type="number" min="0" placeholder="Minutes" />
+          </div>
+          <div>
+            <label>Avg Talk Time — Seconds</label>
+            <input id="seconds" type="number" min="0" max="59" placeholder="Seconds" />
+          </div>
+        </div>
+      </div>
 
-  <br/>
+      <div id="manualMode" style="display:none">
+        <label>Total Talk Time (minutes)</label>
+        <input id="manualTT" type="number" step="0.01" placeholder="e.g. 83.50" />
+        <div class="muted">Decimal minutes (e.g. 83.50)</div>
+      </div>
 
-  <input type="text" id="newEmployeeName" placeholder="Enter New Name">
-  <button onclick="addNewEmployee()">Add New Employee</button>
+      <label style="margin-top:8px">Effective CC</label>
+      <input id="effCC" type="number" min="0" placeholder="e.g. 40" />
 
-  <table>
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>KRA%</th>
-        <th>Salary (₹)</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody id="kraTableBody"></tbody>
-  </table>
+      <div style="margin-top:10px" class="row">
+        <button class="btn" onclick="calculateKRA()">Calculate</button>
+        <button class="btn secondary" onclick="clearCalc()">Clear</button>
+      </div>
 
-  <div class="total" id="totalSalary">Total Salary: ₹0</div>
+      <div class="result" id="talktimeResult">Total Talk Time: —</div>
+      <div class="result" id="kraResult">Your KRA: —</div>
 
-  <footer>📌 Made by Ritik</footer>
+      <hr style="margin:12px 0"/>
 
-  <script>
-    const data = [];
-    let employees = ["Ritik", "Abhishek", "Vipul"];
+      <label>Select Employee to add KRA</label>
+      <select id="employeeSelectForAdd"></select>
 
-    function saveData() {
-      localStorage.setItem("kraData", JSON.stringify(data));
-      localStorage.setItem("kraEmployees", JSON.stringify(employees));
+      <div class="row" style="margin-top:8px">
+        <input id="kraDateForAdd" type="date" />
+        <button class="btn" onclick="addCalculatedToDashboard()">Add Calculated KRA → Dashboard</button>
+      </div>
+
+      <div class="muted" style="margin-top:8px">Tip: If date is empty, today's date will be used.</div>
+    </section>
+
+    <!-- Dashboard Card -->
+    <section class="card" aria-labelledby="dashTitle">
+      <h2 id="dashTitle">KRA Salary Dashboard</h2>
+
+      <label for="employeeName">Select Name</label>
+      <select id="employeeName" onchange="renderTable()"></select>
+
+      <div style="margin-top:8px" class="row">
+        <input type="date" id="kraDate" />
+        <input type="number" id="kraPercent" placeholder="Enter KRA%" />
+        <button class="btn" onclick="addKRA()">Add Entry</button>
+      </div>
+
+      <div style="margin-top:8px" class="row">
+        <input id="newEmployeeName" placeholder="Enter New Name" />
+        <button class="btn secondary" onclick="addNewEmployee()">Add New Employee</button>
+      </div>
+
+      <table aria-live="polite">
+        <thead>
+          <tr><th>Date</th><th>KRA%</th><th>Salary (₹)</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="kraTableBody"></tbody>
+      </table>
+
+      <div class="result" id="totalSalary">Total Salary: ₹0</div>
+      <footer>📌 Made by Ritik — Combined app</footer>
+    </section>
+  </div>
+
+<script>
+  // ---------- Shared data ----------
+  const data = [];
+  let employees = ["Ritik","Abhishek","Vipul"];
+
+  function saveData(){
+    localStorage.setItem('kraData', JSON.stringify(data));
+    localStorage.setItem('kraEmployees', JSON.stringify(employees));
+  }
+  function loadData(){
+    const sd = JSON.parse(localStorage.getItem('kraData'));
+    const se = JSON.parse(localStorage.getItem('kraEmployees'));
+    if (sd && Array.isArray(sd)) data.push(...sd);
+    if (se && Array.isArray(se)) employees = se;
+    populateEmployeeDropdowns();
+    renderTable();
+  }
+
+  function populateEmployeeDropdowns(){
+    const s1 = document.getElementById('employeeName');
+    const s2 = document.getElementById('employeeSelectForAdd');
+    s1.innerHTML = ''; s2.innerHTML = '';
+    employees.forEach(name=>{
+      const o1 = document.createElement('option'); o1.value = o1.textContent = name; s1.appendChild(o1);
+      const o2 = document.createElement('option'); o2.value = o2.textContent = name; s2.appendChild(o2);
+    });
+  }
+
+  // ---------- Calculator (logic from your calculator) ----------
+  let manualMode = false;
+  const targetCC = 50;
+  const targetTT = 240;
+
+  function toggleMode(){
+    manualMode = !manualMode;
+    document.getElementById('autoMode').style.display = manualMode ? 'none' : 'block';
+    document.getElementById('manualMode').style.display = manualMode ? 'block' : 'none';
+    const btn = document.getElementById('toggleBtn');
+    btn.textContent = manualMode ? 'Switch to Auto Talk Time' : 'Switch to Manual Talk Time';
+    btn.classList.toggle('active', manualMode);
+    document.getElementById('talktimeResult').textContent = 'Total Talk Time: —';
+    document.getElementById('kraResult').textContent = 'Your KRA: —';
+  }
+
+  function calculateKRA(){
+    const effCC = parseFloat(document.getElementById('effCC').value);
+    if (isNaN(effCC) || effCC < 0){ alert('Please enter valid Effective CC'); return; }
+
+    let totalMinutes = 0;
+    if (manualMode){
+      const m = parseFloat(document.getElementById('manualTT').value);
+      if (isNaN(m) || m < 0){ alert('Please enter valid total talk time'); return; }
+      totalMinutes = m;
+    } else {
+      const calls = parseInt(document.getElementById('calls').value,10);
+      const min = parseInt(document.getElementById('minutes').value,10) || 0;
+      const sec = parseInt(document.getElementById('seconds').value,10) || 0;
+      if (isNaN(calls) || calls <= 0){ alert('Please enter valid Calls Handled'); return; }
+      if (sec < 0 || sec > 59){ alert('Seconds must be 0-59'); return; }
+      const totalSeconds = calls * (min*60 + sec);
+      totalMinutes = totalSeconds / 60;
     }
 
-    function loadData() {
-      const storedData = JSON.parse(localStorage.getItem("kraData"));
-      const storedEmployees = JSON.parse(localStorage.getItem("kraEmployees"));
+    const kraPercent = ((effCC / targetCC * 0.5) + (totalMinutes / targetTT * 0.5)) * 100;
+    const rounded = Math.max(0, Math.min(999.99, kraPercent)).toFixed(2);
 
-      if (storedData) data.push(...storedData);
-      if (storedEmployees) employees = storedEmployees;
+    document.getElementById('talktimeResult').textContent = `Total Talk Time: ${totalMinutes.toFixed(2)} minutes`;
+    document.getElementById('kraResult').textContent = `Your KRA: ${rounded}%`;
+    // store last calculated value for adding
+    window._lastCalculated = { kra: parseFloat(rounded), totalMinutes, effCC };
+  }
 
-      populateEmployeeDropdown();
-      renderTable();
+  function clearCalc(){
+    ['calls','minutes','seconds','manualTT','effCC'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value='';});
+    document.getElementById('talktimeResult').textContent = 'Total Talk Time: —';
+    document.getElementById('kraResult').textContent = 'Your KRA: —';
+    window._lastCalculated = null;
+  }
+
+  // ---------- Salary calculation ----------
+  function calculateSalary(kra){
+    if (kra >= 150) return 1100;
+    if (kra >= 135) return 1000;
+    if (kra >= 120) return 900;
+    if (kra >= 100) return 750;
+    if (kra >= 80) return 500;
+    if (kra >= 60) return 300;
+    return 0;
+  }
+
+  // ---------- Dashboard actions ----------
+  function addKRA(){
+    const name = document.getElementById('employeeName').value;
+    const date = document.getElementById('kraDate').value;
+    const kra = parseFloat(document.getElementById('kraPercent').value);
+
+    if (!date || isNaN(kra)){ alert('Please enter valid date and KRA%'); return; }
+    if (data.some(d=>d.name===name && d.date===date)){ alert('Entry exists for this date & employee'); return; }
+    const salary = calculateSalary(kra);
+    data.push({ name, date, kra, salary });
+    saveData(); renderTable();
+    document.getElementById('kraDate').value=''; document.getElementById('kraPercent').value='';
+  }
+
+  function renderTable(){
+    const tbody = document.getElementById('kraTableBody');
+    tbody.innerHTML = '';
+    const selectedName = document.getElementById('employeeName').value;
+    let total = 0;
+    const filtered = data.filter(item=>item.name===selectedName).sort((a,b)=> new Date(a.date) - new Date(b.date));
+    filtered.forEach(item=>{
+      total += item.salary;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${item.date}</td><td>${item.kra}%</td><td>₹${item.salary}</td>
+        <td>
+          <button onclick="editRow(${data.indexOf(item)})">Edit</button>
+          <button onclick="deleteRow(${data.indexOf(item)})">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('totalSalary').innerText = `Total Salary for ${selectedName}: ₹${total}`;
+  }
+
+  function deleteRow(index){
+    if (!confirm('Delete this entry?')) return;
+    data.splice(index,1); saveData(); renderTable();
+  }
+
+  function editRow(index){
+    const item = data[index];
+    document.getElementById('kraDate').value = item.date;
+    document.getElementById('kraPercent').value = item.kra;
+    document.getElementById('employeeName').value = item.name;
+    // remove original so user can save updated via Add Entry
+    data.splice(index,1); saveData(); renderTable();
+  }
+
+  function addNewEmployee(){
+    const newName = document.getElementById('newEmployeeName').value.trim();
+    if (!newName || employees.includes(newName)){ alert('Enter a unique valid name'); return; }
+    employees.push(newName); populateEmployeeDropdowns(); saveData();
+    document.getElementById('newEmployeeName').value=''; document.getElementById('employeeName').value=newName;
+  }
+
+  // ---------- Integration: add calculated KRA to dashboard ----------
+  function formatDateToday(){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function addCalculatedToDashboard(){
+    // require calculation first
+    if (!window._lastCalculated || typeof window._lastCalculated.kra !== 'number'){
+      if (!confirm('KRA not calculated yet. Calculate now with current inputs?')) return;
+      calculateKRA();
+      if (!window._lastCalculated) return;
     }
 
-    function populateEmployeeDropdown() {
-      const select = document.getElementById("employeeName");
-      select.innerHTML = "";
-      employees.forEach(name => {
-        const option = document.createElement("option");
-        option.value = option.textContent = name;
-        select.appendChild(option);
-      });
-    }
+    const kra = window._lastCalculated.kra;
+    const name = document.getElementById('employeeSelectForAdd').value;
+    let date = document.getElementById('kraDateForAdd').value;
+    if (!date) date = formatDateToday();
 
-    function calculateSalary(kra) {
-      if (kra >= 150) return 1100;
-      if (kra >= 135) return 1000;
-      if (kra >= 120) return 900;
-      if (kra >= 100) return 750;
-      if (kra >= 80) return 500;
-      if (kra >= 60) return 300;
-      return 0;
-    }
+    if (data.some(d=>d.name===name && d.date===date)){ alert('Entry exists for this date & employee'); return; }
 
-    function addKRA() {
-      const name = document.getElementById("employeeName").value;
-      const date = document.getElementById("kraDate").value;
-      const kra = parseFloat(document.getElementById("kraPercent").value);
+    const salary = calculateSalary(kra);
+    data.push({ name, date, kra, salary });
+    saveData(); renderTable();
 
-      if (!date || isNaN(kra)) {
-        alert("Please enter valid date and KRA%");
-        return;
-      }
+    // reflect selection / show mini confirmation
+    document.getElementById('kraDateForAdd').value = '';
+    alert(`Added: ${name} | ${date} | KRA ${kra}% | Salary ₹${salary}`);
+  }
 
-      if (data.some(d => d.name === name && d.date === date)) {
-        alert("Entry for this date already exists for this employee.");
-        return;
-      }
-
-      const salary = calculateSalary(kra);
-      data.push({ name, date, kra, salary });
-      saveData();
-      renderTable();
-
-      document.getElementById("kraDate").value = "";
-      document.getElementById("kraPercent").value = "";
-    }
-
-    function renderTable() {
-      const tbody = document.getElementById("kraTableBody");
-      tbody.innerHTML = "";
-      const selectedName = document.getElementById("employeeName").value;
-
-      let total = 0;
-
-      const filtered = data.filter(item => item.name === selectedName);
-      filtered.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-      filtered.forEach((item, index) => {
-        const row = document.createElement("tr");
-        total += item.salary;
-        row.innerHTML = `
-          <td>${item.date}</td>
-          <td>${item.kra}%</td>
-          <td>₹${item.salary}</td>
-          <td>
-            <button onclick="editRow(${data.indexOf(item)})">Edit</button>
-            <button onclick="deleteRow(${data.indexOf(item)})">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-
-      document.getElementById("totalSalary").innerText = `Total Salary for ${selectedName}: ₹${total}`;
-    }
-
-    function deleteRow(index) {
-      data.splice(index, 1);
-      saveData();
-      renderTable();
-    }
-
-    function editRow(index) {
-      const item = data[index];
-      document.getElementById("kraDate").value = item.date;
-      document.getElementById("kraPercent").value = item.kra;
-      document.getElementById("employeeName").value = item.name;
-      deleteRow(index);
-    }
-
-    function addNewEmployee() {
-      const newName = document.getElementById("newEmployeeName").value.trim();
-      if (newName && !employees.includes(newName)) {
-        employees.push(newName);
-        populateEmployeeDropdown();
-        document.getElementById("employeeName").value = newName;
-        document.getElementById("newEmployeeName").value = "";
-        saveData();
-      } else {
-        alert("Please enter a unique and valid name.");
-      }
-    }
-
-    window.onload = loadData;
-  </script>
+  // ---------- Init ----------
+  window.onload = function(){
+    loadData();
+    // if no employees chosen, ensure selects exist
+    if (!document.getElementById('employeeName').value && employees.length) document.getElementById('employeeName').value = employees[0];
+    if (!document.getElementById('employeeSelectForAdd').value && employees.length) document.getElementById('employeeSelectForAdd').value = employees[0];
+  };
+</script>
 
 </body>
 </html>
