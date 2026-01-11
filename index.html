@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Combined KRA + Salary + Incentive Dashboard</title>
+<title>KRA + Salary + Incentive + TDS Dashboard</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-:root{--bg:#f4f6f8;--card:#fff;--accent:#0b79d0;--green:#28a745}
+:root{--bg:#f4f6f8;--card:#fff;--accent:#0b79d0;--green:#16a34a;--red:#b91c1c}
 *{box-sizing:border-box}
-body{font-family:Arial,system-ui;background:var(--bg);margin:0;padding:18px;color:#222}
+body{margin:0;padding:18px;font-family:Arial,system-ui;background:var(--bg)}
 .wrap{max-width:1100px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .card{background:var(--card);padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
 h2,h3{margin:0 0 10px}
@@ -31,191 +31,161 @@ th,td{border:1px solid #ddd;padding:8px;text-align:center}
 
 <!-- ================= CALCULATOR ================= -->
 <section class="card">
-  <h2>Talk Time & KRA Calculator</h2>
+<h2>Talk Time & KRA Calculator</h2>
 
-  <button id="toggleBtn" onclick="toggleMode()">Switch to Manual Talk Time</button>
+<button id="toggleBtn" onclick="toggleMode()">Switch to Manual Talk Time</button>
 
-  <div id="autoMode">
-    <label>Calls Handled</label>
-    <input id="calls" type="number">
+<div id="autoMode">
+  <label>Calls Handled</label>
+  <input id="calls" type="number">
 
-    <div class="row">
-      <div>
-        <label>Avg Talk Time (Minutes)</label>
-        <input id="minutes" type="number">
-      </div>
-      <div>
-        <label>Avg Talk Time (Seconds)</label>
-        <input id="seconds" type="number" max="59">
-      </div>
+  <div class="row">
+    <div>
+      <label>Avg Talk Time (Minutes)</label>
+      <input id="minutes" type="number">
+    </div>
+    <div>
+      <label>Avg Talk Time (Seconds)</label>
+      <input id="seconds" type="number" max="59">
     </div>
   </div>
+</div>
 
-  <div id="manualMode" style="display:none">
-    <label>Total Talk Time (Minutes)</label>
-    <input id="manualTT" type="number" step="0.01">
-    <div class="muted">Example: 83.50</div>
-  </div>
+<div id="manualMode" style="display:none">
+  <label>Total Talk Time (Minutes)</label>
+  <input id="manualTT" type="number" step="0.01">
+  <div class="muted">Example: 83.50</div>
+</div>
 
-  <label>Effective CC</label>
-  <input id="effCC" type="number">
+<label>Effective CC</label>
+<input id="effCC" type="number">
 
-  <button style="margin-top:10px" onclick="calculateKRA()">Calculate KRA</button>
-  <div class="result" id="kraResult">KRA: —</div>
+<button style="margin-top:10px" onclick="calculateKRA()">Calculate KRA</button>
+<div class="result" id="kraResult">KRA: —</div>
 
-  <hr>
+<hr>
 
-  <label>Add Calculated KRA to Employee</label>
-  <select id="employeeSelect"></select>
-  <input type="date" id="kraDate">
-  <button onclick="addCalculated()">Add to Dashboard</button>
+<label>Add Calculated KRA to Employee</label>
+<select id="employeeSelect"></select>
+<input type="date" id="kraDate">
+<button onclick="addCalculated()">Add to Dashboard</button>
 </section>
 
 <!-- ================= DASHBOARD ================= -->
 <section class="card">
-  <h2>Salary + Incentive Dashboard</h2>
+<h2>Salary + Incentive Dashboard</h2>
 
-  <label>Select Employee</label>
-  <select id="employeeName" onchange="renderTable()"></select>
+<label>Select Employee</label>
+<select id="employeeName" onchange="renderTable()"></select>
 
-  <!-- ADD NEW EMPLOYEE -->
-  <div class="row">
-    <input id="newEmployeeName" placeholder="New Employee Name">
-    <button class="secondary" onclick="addNewEmployee()">Add Employee</button>
-  </div>
+<div class="row">
+  <input id="newEmployeeName" placeholder="New Employee Name">
+  <button class="secondary" onclick="addNewEmployee()">Add Employee</button>
+</div>
 
-  <hr>
+<hr>
 
-  <h3>Incentive (3% on Sale)</h3>
-  <div class="row">
-    <input id="saleInput" type="number" placeholder="Total Sale ₹">
-    <button onclick="addIncentive()">Add Incentive</button>
-  </div>
-  <div id="incInfo" class="muted"></div>
+<h3>Incentive (3% on Sale)</h3>
+<div class="row">
+  <input id="saleInput" type="number" placeholder="Total Sale ₹">
+  <button onclick="addIncentive()">Add Incentive</button>
+</div>
+<div id="incInfo" class="muted"></div>
 
-  <table>
-    <thead>
-      <tr><th>Date</th><th>KRA%</th><th>Salary</th><th>Actions</th></tr>
-    </thead>
-    <tbody id="kraTableBody"></tbody>
-  </table>
+<table>
+<thead>
+<tr><th>Date</th><th>KRA%</th><th>Salary</th><th>Actions</th></tr>
+</thead>
+<tbody id="kraTableBody"></tbody>
+</table>
 
-  <div class="result" id="totalSalary"></div>
+<div class="result" id="totalSalary"></div>
+<div class="muted">* 10% TDS deducted on total payout</div>
 </section>
 
 </div>
 
 <script>
-/* ===== DATA ===== */
 let data = JSON.parse(localStorage.getItem("kraData")||"[]");
 let employees = JSON.parse(localStorage.getItem("kraEmployees")||'["Ritik","Abhishek","Vipul"]');
 let incentives = JSON.parse(localStorage.getItem("kraIncentives")||"{}");
 
-let manualMode = false;
-let lastKRA = null;
+let manualMode=false,lastKRA=null;
 
-/* ===== INIT ===== */
 function populateEmployees(){
-  employeeName.innerHTML = employeeSelect.innerHTML = "";
+  employeeName.innerHTML=employeeSelect.innerHTML="";
   employees.forEach(e=>{
-    employeeName.innerHTML += `<option>${e}</option>`;
-    employeeSelect.innerHTML += `<option>${e}</option>`;
+    employeeName.innerHTML+=`<option>${e}</option>`;
+    employeeSelect.innerHTML+=`<option>${e}</option>`;
   });
 }
-populateEmployees();
-renderTable();
+populateEmployees();renderTable();
 
-/* ===== SWITCH ===== */
 function toggleMode(){
-  manualMode = !manualMode;
-  autoMode.style.display = manualMode ? "none" : "block";
-  manualModeDiv = document.getElementById("manualMode");
-  manualModeDiv.style.display = manualMode ? "block" : "none";
-  toggleBtn.innerText = manualMode
-    ? "Switch to Auto Talk Time"
-    : "Switch to Manual Talk Time";
-  kraResult.innerText = "KRA: —";
+  manualMode=!manualMode;
+  autoMode.style.display=manualMode?"none":"block";
+  manualModeDiv=document.getElementById("manualMode");
+  manualModeDiv.style.display=manualMode?"block":"none";
+  toggleBtn.innerText=manualMode?"Switch to Auto Talk Time":"Switch to Manual Talk Time";
+  kraResult.innerText="KRA: —";
 }
 
-/* ===== KRA CALC ===== */
 function calculateKRA(){
-  const cc = +effCC.value;
-  if(!cc){ alert("Enter Effective CC"); return; }
-
-  let totalMinutes = 0;
+  const cc=+effCC.value;if(!cc){alert("Enter Effective CC");return;}
+  let totalMinutes=0;
   if(manualMode){
-    totalMinutes = +manualTT.value;
-    if(!totalMinutes){ alert("Enter total talk time"); return; }
-  } else {
-    const c = +calls.value;
-    const m = +minutes.value || 0;
-    const s = +seconds.value || 0;
-    if(!c){ alert("Enter calls"); return; }
-    totalMinutes = c * ((m*60+s)/60);
+    totalMinutes=+manualTT.value;if(!totalMinutes){alert("Enter talk time");return;}
+  }else{
+    const c=+calls.value,m=+minutes.value||0,s=+seconds.value||0;
+    if(!c){alert("Enter calls");return;}
+    totalMinutes=c*((m*60+s)/60);
   }
-
-  const kra = ((cc/50)*0.5 + (totalMinutes/240)*0.5) * 100;
-  lastKRA = +kra.toFixed(2);
-  kraResult.innerText = "KRA: " + lastKRA + "%";
+  const kra=((cc/50)*0.5+(totalMinutes/240)*0.5)*100;
+  lastKRA=+kra.toFixed(2);
+  kraResult.innerText="KRA: "+lastKRA+"%";
 }
 
-/* ===== SALARY SLAB ===== */
 function salaryFromKRA(k){
-  if(k>=150) return 1100;
-  if(k>=135) return 1000;
-  if(k>=120) return 900;
-  if(k>=100) return 750;
-  if(k>=80) return 500;
-  if(k>=60) return 300;
+  if(k>=150)return 1100;
+  if(k>=135)return 1000;
+  if(k>=120)return 900;
+  if(k>=100)return 750;
+  if(k>=80)return 500;
+  if(k>=60)return 300;
   return 0;
 }
 
-/* ===== ADD KRA ===== */
 function addCalculated(){
-  if(lastKRA===null){ alert("Calculate KRA first"); return; }
-  const name = employeeSelect.value;
-  let date = kraDate.value;
-  if(!date) date = new Date().toISOString().slice(0,10);
-  if(data.some(d=>d.name===name && d.date===date)){
-    alert("Entry already exists"); return;
-  }
+  if(lastKRA===null){alert("Calculate KRA first");return;}
+  const name=employeeSelect.value;
+  let date=kraDate.value||new Date().toISOString().slice(0,10);
+  if(data.some(d=>d.name===name&&d.date===date)){alert("Entry exists");return;}
   data.push({name,date,kra:lastKRA,salary:salaryFromKRA(lastKRA)});
-  save(); renderTable();
+  save();renderTable();
 }
 
-/* ===== INCENTIVE ===== */
 function addIncentive(){
-  const sale = +saleInput.value;
-  if(!sale){ alert("Enter sale amount"); return; }
-  const emp = employeeName.value;
-  incentives[emp] = +(sale * 0.03).toFixed(2);
-  save(); renderTable();
+  const sale=+saleInput.value;if(!sale){alert("Enter sale");return;}
+  incentives[employeeName.value]=+(sale*0.03).toFixed(2);
+  save();renderTable();
 }
 
-/* ===== ADD NEW EMPLOYEE ===== */
 function addNewEmployee(){
-  const name = newEmployeeName.value.trim();
-  if(!name){ alert("Enter employee name"); return; }
-  if(employees.includes(name)){ alert("Employee already exists"); return; }
-  employees.push(name);
-  save();
-  populateEmployees();
-  employeeName.value = name;
-  employeeSelect.value = name;
-  newEmployeeName.value = "";
+  const n=newEmployeeName.value.trim();
+  if(!n||employees.includes(n)){alert("Invalid/Exists");return;}
+  employees.push(n);save();populateEmployees();
+  employeeName.value=employeeSelect.value=n;
+  newEmployeeName.value="";
 }
 
-/* ===== RENDER ===== */
 function renderTable(){
-  const emp = employeeName.value;
-  kraTableBody.innerHTML = "";
-  let total = 0;
-  let days = new Set();
+  const emp=employeeName.value;
+  kraTableBody.innerHTML="";
+  let salaryTotal=0,days=new Set();
 
   data.filter(d=>d.name===emp).forEach(d=>{
-    total += d.salary;
-    days.add(d.date);
-    kraTableBody.innerHTML += `
+    salaryTotal+=d.salary;days.add(d.date);
+    kraTableBody.innerHTML+=`
       <tr>
         <td>${d.date}</td>
         <td>${d.kra}</td>
@@ -227,34 +197,34 @@ function renderTable(){
       </tr>`;
   });
 
-  const inc = incentives[emp] || 0;
-  totalSalary.innerHTML = `
+  const inc=incentives[emp]||0;
+  const gross=salaryTotal+inc;
+  const tds=+(gross*0.10).toFixed(2);
+  const net=+(gross-tds).toFixed(2);
+
+  totalSalary.innerHTML=`
     Working Days: <b>${days.size}</b><br>
-    Salary: ₹${total}<br>
-    Incentive: ₹${inc}<br>
-    <span style="color:green;font-size:16px">
-      Total Pay: ₹${total + inc}
-    </span>`;
-  incInfo.innerText = inc ? `Incentive Added: ₹${inc}` : "No incentive added";
+    Salary: ₹${salaryTotal}<br>
+    Incentive: ₹${inc}<br><br>
+    <b>Total (Before TDS): ₹${gross}</b><br>
+    <span style="color:var(--red)">TDS (10%): -₹${tds}</span><br>
+    <span style="color:var(--green);font-size:16px">
+      Net Pay (After TDS): ₹${net}
+    </span>
+  `;
+  incInfo.innerText=inc?`Incentive Added: ₹${inc}`:"No incentive added";
 }
 
-/* ===== EDIT / DELETE ===== */
-function del(n,d){
-  data = data.filter(x=>!(x.name===n && x.date===d));
-  save(); renderTable();
-}
+function del(n,d){data=data.filter(x=>!(x.name===n&&x.date===d));save();renderTable();}
 function editRow(n,d){
-  const item = data.find(x=>x.name===n && x.date===d);
-  if(!item) return;
-  employeeName.value = n;
-  employeeSelect.value = n;
-  kraDate.value = d;
-  lastKRA = item.kra;
-  kraResult.innerText = "KRA: " + lastKRA + "%";
+  const i=data.find(x=>x.name===n&&x.date===d);
+  if(!i)return;
+  employeeName.value=employeeSelect.value=n;
+  kraDate.value=d;lastKRA=i.kra;
+  kraResult.innerText="KRA: "+lastKRA+"%";
   del(n,d);
 }
 
-/* ===== SAVE ===== */
 function save(){
   localStorage.setItem("kraData",JSON.stringify(data));
   localStorage.setItem("kraEmployees",JSON.stringify(employees));
