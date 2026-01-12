@@ -14,7 +14,9 @@
   --red:#b91c1c;
   --text:#eaeaea;
 }
-*{box-sizing:border-box}
+
+*{box-sizing:border-box;}
+
 body{
   margin:0;
   padding:18px;
@@ -22,6 +24,7 @@ body{
   background:var(--bg);
   color:var(--text);
 }
+
 .wrap{
   max-width:1100px;
   margin:auto;
@@ -29,14 +32,17 @@ body{
   grid-template-columns:1fr 1fr;
   gap:18px;
 }
+
 .card{
   background:var(--card);
   padding:16px;
   border-radius:10px;
   box-shadow:0 6px 18px rgba(0,0,0,.4);
 }
-h2,h3{margin:0 0 10px}
-label{font-size:13px;margin-top:8px;display:block}
+
+h2,h3{margin:0 0 10px;}
+label{font-size:13px;margin-top:8px;display:block;}
+
 input,select,button{
   padding:9px;
   border:1px solid #444;
@@ -45,42 +51,66 @@ input,select,button{
   background:#2a2a2a;
   color:var(--text);
 }
+
 button{
   background:var(--accent);
   color:#fff;
   border:none;
   cursor:pointer;
 }
-button.secondary{background:#777}
-.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 
+button.secondary{background:#777;}
+.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+
+
+/* Table Layout Fix */
 table{
   width:100%;
   border-collapse:collapse;
+  table-layout:fixed;
   margin-top:12px;
-  table-layout:fixed;   /* FIX #1 */
 }
-th,td{
+
+table thead, table tbody{
+  display:block;
+}
+
+table thead tr, table tbody tr{
+  display:table;
+  width:100%;
+  table-layout:fixed;
+}
+
+th, td{
   border:1px solid #333;
-  padding:8px;
+  height:38px;
+  line-height:38px;
+  vertical-align:middle;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
   text-align:center;
 }
 
-/* Scroll Table — FIX #2 */
-#kraTableBody{
-  display:block;
-  max-height:400px;
-  overflow-y:auto;
-  border:1px solid #444;
-}
-
-/* Actions column width — FIX #3 */
-td:last-child, th:last-child {
+/* Actions Column */
+td:last-child, th:last-child{
   width:110px;
   min-width:110px;
 }
 
-/* Sticky Summary */
+td:last-child button{
+  width:48%;
+  margin:0 1%;
+}
+
+/* Scroll area for body */
+#kraTableBody{
+  max-height:350px;
+  overflow-y:auto;
+  border:1px solid #333;
+}
+
+/* Sticky Summary Section */
 #totalSalary{
   position:sticky;
   bottom:0;
@@ -90,19 +120,19 @@ td:last-child, th:last-child {
   border-top:1px solid #444;
 }
 
-.result{margin-top:10px;font-weight:bold}
-.muted{font-size:13px;color:#aaa}
+.result{margin-top:10px;font-weight:bold;}
+.muted{font-size:13px;color:#aaa;}
 
 @media(max-width:900px){
-  .wrap{grid-template-columns:1fr}
+  .wrap{grid-template-columns:1fr;}
 }
 </style>
 </head>
 
 <body>
-
 <div class="wrap">
 
+<!-- ========= KRA CALCULATOR ========= -->
 <section class="card">
 <h2>Talk Time & KRA Calculator</h2>
 
@@ -113,8 +143,14 @@ td:last-child, th:last-child {
   <input id="calls" type="number">
 
   <div class="row">
-    <div><label>Avg Talk Time (Minutes)</label><input id="minutes" type="number"></div>
-    <div><label>Avg Talk Time (Seconds)</label><input id="seconds" type="number" max="59"></div>
+    <div>
+      <label>Avg Talk Time (Minutes)</label>
+      <input id="minutes" type="number">
+    </div>
+    <div>
+      <label>Avg Talk Time (Seconds)</label>
+      <input id="seconds" type="number" max="59">
+    </div>
   </div>
 </div>
 
@@ -127,7 +163,7 @@ td:last-child, th:last-child {
 <label>Effective CC</label>
 <input id="effCC" type="number">
 
-<button style="margin-top:10px" onclick="calculateKRA()">Calculate KRA</button>
+<button style="margin-top:10px;" onclick="calculateKRA()">Calculate KRA</button>
 <div class="result" id="kraResult">KRA: —</div>
 <hr>
 
@@ -137,6 +173,8 @@ td:last-child, th:last-child {
 <button onclick="addCalculated()">Add to Dashboard</button>
 </section>
 
+
+<!-- ========= DASHBOARD ========= -->
 <section class="card">
 <h2>Salary + Incentive Dashboard</h2>
 
@@ -189,8 +227,7 @@ populateEmployees();renderTable();
 function toggleMode(){
   manualMode=!manualMode;
   autoMode.style.display=manualMode?"none":"block";
-  manualModeDiv=document.getElementById("manualMode");
-  manualModeDiv.style.display=manualMode?"block":"none";
+  manualMode.style.display=manualMode?"block":"none";
   toggleBtn.innerText=manualMode?"Switch to Auto Talk Time":"Switch to Manual Talk Time";
   kraResult.innerText="KRA: —";
 }
@@ -247,6 +284,7 @@ function renderTable(){
   const emp=employeeName.value;
   const body=kraTableBody;
   const prevScroll=body.scrollTop;
+
   body.innerHTML="";
   let salaryTotal=0,days=new Set();
 
@@ -267,7 +305,7 @@ function renderTable(){
   body.scrollTop=prevScroll;
 
   const inc=incentives[emp]||0;
-  const gross=+(salaryTotal+inc).toFixed(2); /* FIX floating */
+  const gross=+(salaryTotal+inc).toFixed(2);
   const tds=+(gross*0.10).toFixed(2);
   const net=+(gross-tds).toFixed(2);
 
