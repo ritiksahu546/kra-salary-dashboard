@@ -6,21 +6,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-:root{--bg:#f4f6f8;--card:#fff;--accent:#0b79d0;--green:#16a34a;--red:#b91c1c}
+:root{--bg:#0f172a;--card:#020617;--accent:#38bdf8;--green:#22c55e;--red:#ef4444;--text:#e5e7eb}
 *{box-sizing:border-box}
-body{margin:0;padding:18px;font-family:Arial,system-ui;background:var(--bg)}
-.wrap{max-width:1100px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.card{background:var(--card);padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+body{margin:0;padding:18px;font-family:Arial,system-ui;background:var(--bg);color:var(--text)}
+.wrap{max-width:1200px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.card{background:var(--card);padding:16px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
 h2,h3{margin:0 0 10px}
-label{font-size:13px;margin-top:8px;display:block}
-input,select,button{padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px}
-button{background:var(--accent);color:#fff;border:none;cursor:pointer}
-button.secondary{background:#777}
+label{font-size:13px;margin-top:8px;display:block;color:#cbd5f5}
+input,select,button{padding:9px;border-radius:8px;border:1px solid #334155;background:#020617;color:#e5e7eb;font-size:14px}
+button{background:var(--accent);border:none;color:#020617;font-weight:600;cursor:pointer}
+button.secondary{background:#475569;color:#fff}
 .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-table{width:100%;border-collapse:collapse;margin-top:12px}
-th,td{border:1px solid #ddd;padding:8px;text-align:center}
 .result{margin-top:10px;font-weight:bold}
-.muted{font-size:13px;color:#666}
+.muted{font-size:13px;color:#94a3b8}
+
+.table-wrapper{
+  max-height:320px;
+  overflow-y:auto;
+  margin-top:12px;
+  border:1px solid #334155;
+  border-radius:8px;
+}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;text-align:center;border-bottom:1px solid #334155;font-size:14px}
+thead th{position:sticky;top:0;background:#020617;z-index:2}
+
 @media(max-width:900px){.wrap{grid-template-columns:1fr}}
 </style>
 </head>
@@ -54,7 +64,6 @@ th,td{border:1px solid #ddd;padding:8px;text-align:center}
 <div id="manualMode" style="display:none">
   <label>Total Talk Time (Minutes)</label>
   <input id="manualTT" type="number" step="0.01">
-  <div class="muted">Example: 83.50</div>
 </div>
 
 <label>Effective CC</label>
@@ -83,6 +92,12 @@ th,td{border:1px solid #ddd;padding:8px;text-align:center}
   <button class="secondary" onclick="addNewEmployee()">Add Employee</button>
 </div>
 
+<label>Salary Cycle</label>
+<select id="cycleSelect" onchange="renderTable()">
+  <option value="current">Current Cycle (11–10)</option>
+  <option value="previous">Previous Cycle (11–10)</option>
+</select>
+
 <hr>
 
 <h3>Incentive (3% on Sale)</h3>
@@ -92,15 +107,24 @@ th,td{border:1px solid #ddd;padding:8px;text-align:center}
 </div>
 <div id="incInfo" class="muted"></div>
 
+<h3 style="margin-top:10px">Add KRA Manually</h3>
+<div class="row">
+  <input type="date" id="manualKraDate">
+  <input type="number" id="manualKraPercent" placeholder="KRA %">
+  <button onclick="addKRAManual()">Add Entry</button>
+</div>
+
+<div class="table-wrapper">
 <table>
 <thead>
 <tr><th>Date</th><th>KRA%</th><th>Salary</th><th>Actions</th></tr>
 </thead>
 <tbody id="kraTableBody"></tbody>
 </table>
+</div>
 
 <div class="result" id="totalSalary"></div>
-<div class="muted">* 10% TDS deducted on total payout</div>
+<div class="muted">* Salary cycle: 11th to 10th | 10% TDS deducted</div>
 </section>
 
 </div>
@@ -124,10 +148,8 @@ populateEmployees();renderTable();
 function toggleMode(){
   manualMode=!manualMode;
   autoMode.style.display=manualMode?"none":"block";
-  manualModeDiv=document.getElementById("manualMode");
-  manualModeDiv.style.display=manualMode?"block":"none";
+  manualMode.style.display=manualMode?"block":"none";
   toggleBtn.innerText=manualMode?"Switch to Auto Talk Time":"Switch to Manual Talk Time";
-  kraResult.innerText="KRA: —";
 }
 
 function calculateKRA(){
@@ -156,35 +178,70 @@ function salaryFromKRA(k){
 }
 
 function addCalculated(){
-  if(lastKRA===null){alert("Calculate KRA first");return;}
+  if(lastKRA===null)return alert("Calculate KRA first");
   const name=employeeSelect.value;
-  let date=kraDate.value||new Date().toISOString().slice(0,10);
-  if(data.some(d=>d.name===name&&d.date===date)){alert("Entry exists");return;}
+  const date=kraDate.value||new Date().toISOString().slice(0,10);
+  if(data.some(d=>d.name===name&&d.date===date))return alert("Entry exists");
   data.push({name,date,kra:lastKRA,salary:salaryFromKRA(lastKRA)});
   save();renderTable();
 }
 
+function addKRAManual(){
+  const name=employeeName.value;
+  const date=manualKraDate.value;
+  const kra=parseFloat(manualKraPercent.value);
+  if(!date||isNaN(kra))return alert("Invalid input");
+  if(data.some(d=>d.name===name&&d.date===date))return alert("Entry exists");
+  data.push({name,date,kra,salary:salaryFromKRA(kra)});
+  manualKraDate.value=manualKraPercent.value="";
+  save();renderTable();
+}
+
 function addIncentive(){
-  const sale=+saleInput.value;if(!sale){alert("Enter sale");return;}
+  const sale=+saleInput.value;if(!sale)return alert("Enter sale");
   incentives[employeeName.value]=+(sale*0.03).toFixed(2);
   save();renderTable();
 }
 
 function addNewEmployee(){
   const n=newEmployeeName.value.trim();
-  if(!n||employees.includes(n)){alert("Invalid/Exists");return;}
+  if(!n||employees.includes(n))return alert("Invalid / Exists");
   employees.push(n);save();populateEmployees();
   employeeName.value=employeeSelect.value=n;
   newEmployeeName.value="";
 }
 
+function getCycleRange(type){
+  const t=new Date();let start,end;
+  if(type==="previous"){
+    start=new Date(t.getFullYear(),t.getMonth()-1,11);
+    end=new Date(t.getFullYear(),t.getMonth(),10);
+  }else{
+    if(t.getDate()>=11){
+      start=new Date(t.getFullYear(),t.getMonth(),11);
+      end=new Date(t.getFullYear(),t.getMonth()+1,10);
+    }else{
+      start=new Date(t.getFullYear(),t.getMonth()-1,11);
+      end=new Date(t.getFullYear(),t.getMonth(),10);
+    }
+  }
+  return {start,end};
+}
+
 function renderTable(){
   const emp=employeeName.value;
-  kraTableBody.innerHTML="";
-  let salaryTotal=0,days=new Set();
+  const cycle=document.getElementById("cycleSelect").value;
+  const {start,end}=getCycleRange(cycle);
 
-  data.filter(d=>d.name===emp).forEach(d=>{
-    salaryTotal+=d.salary;days.add(d.date);
+  kraTableBody.innerHTML="";
+  let salary=0,days=new Set();
+
+  data.filter(d=>{
+    if(d.name!==emp)return false;
+    const dt=new Date(d.date);
+    return dt>=start&&dt<=end;
+  }).forEach(d=>{
+    salary+=d.salary;days.add(d.date);
     kraTableBody.innerHTML+=`
       <tr>
         <td>${d.date}</td>
@@ -198,19 +255,17 @@ function renderTable(){
   });
 
   const inc=incentives[emp]||0;
-  const gross=salaryTotal+inc;
-  const tds=+(gross*0.10).toFixed(2);
-  const net=+(gross-tds).toFixed(2);
+  const gross=salary+inc;
+  const tds=(gross*0.10).toFixed(2);
+  const net=(gross-tds).toFixed(2);
 
   totalSalary.innerHTML=`
-    Working Days: <b>${days.size}</b><br>
-    Salary: ₹${salaryTotal}<br>
+    Working Days: ${days.size}<br>
+    Salary: ₹${salary}<br>
     Incentive: ₹${inc}<br><br>
     <b>Total (Before TDS): ₹${gross}</b><br>
     <span style="color:var(--red)">TDS (10%): -₹${tds}</span><br>
-    <span style="color:var(--green);font-size:16px">
-      Net Pay (After TDS): ₹${net}
-    </span>
+    <span style="color:var(--green)">Net Pay: ₹${net}</span>
   `;
   incInfo.innerText=inc?`Incentive Added: ₹${inc}`:"No incentive added";
 }
