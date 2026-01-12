@@ -6,22 +6,88 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-:root{--bg:#f4f6f8;--card:#fff;--accent:#0b79d0;--green:#16a34a;--red:#b91c1c}
+:root{
+  --bg:#0f0f0f;
+  --card:#1b1b1b;
+  --accent:#0b79d0;
+  --green:#16a34a;
+  --red:#b91c1c;
+  --text:#eaeaea;
+}
 *{box-sizing:border-box}
-body{margin:0;padding:18px;font-family:Arial,system-ui;background:var(--bg)}
-.wrap{max-width:1100px;margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.card{background:var(--card);padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+body{
+  margin:0;
+  padding:18px;
+  font-family:Arial,system-ui;
+  background:var(--bg);
+  color:var(--text);
+}
+.wrap{
+  max-width:1100px;
+  margin:auto;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:18px;
+}
+.card{
+  background:var(--card);
+  padding:16px;
+  border-radius:10px;
+  box-shadow:0 6px 18px rgba(0,0,0,.4);
+}
 h2,h3{margin:0 0 10px}
 label{font-size:13px;margin-top:8px;display:block}
-input,select,button{padding:9px;border:1px solid #ccc;border-radius:8px;font-size:14px}
-button{background:var(--accent);color:#fff;border:none;cursor:pointer}
+input,select,button{
+  padding:9px;
+  border:1px solid #444;
+  border-radius:8px;
+  font-size:14px;
+  background:#2a2a2a;
+  color:var(--text);
+}
+button{
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  cursor:pointer;
+}
 button.secondary{background:#777}
 .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-table{width:100%;border-collapse:collapse;margin-top:12px}
-th,td{border:1px solid #ddd;padding:8px;text-align:center}
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+}
+th,td{
+  border:1px solid #333;
+  padding:8px;
+  text-align:center;
+}
+
+/* Scroll Table */
+#kraTableBody{
+  display:block;
+  max-height:260px;
+  overflow-y:auto;
+  border:1px solid #444;
+}
+
+/* Sticky Summary */
+#totalSalary{
+  position:sticky;
+  bottom:0;
+  background:#111;
+  padding:10px;
+  margin-top:10px;
+  border-top:1px solid #444;
+}
+
 .result{margin-top:10px;font-weight:bold}
-.muted{font-size:13px;color:#666}
-@media(max-width:900px){.wrap{grid-template-columns:1fr}}
+.muted{font-size:13px;color:#aaa}
+
+@media(max-width:900px){
+  .wrap{grid-template-columns:1fr}
+}
 </style>
 </head>
 
@@ -33,9 +99,9 @@ th,td{border:1px solid #ddd;padding:8px;text-align:center}
 <section class="card">
 <h2>Talk Time & KRA Calculator</h2>
 
-<button id="toggleBtn" onclick="toggleMode()">Switch to Manual Talk Time</button>
+<button id="toggleBtn" onclick="toggleMode()">Switch to Auto Talk Time</button>
 
-<div id="autoMode">
+<div id="autoMode" style="display:none">
   <label>Calls Handled</label>
   <input id="calls" type="number">
 
@@ -51,7 +117,7 @@ th,td{border:1px solid #ddd;padding:8px;text-align:center}
   </div>
 </div>
 
-<div id="manualMode" style="display:none">
+<div id="manualMode">
   <label>Total Talk Time (Minutes)</label>
   <input id="manualTT" type="number" step="0.01">
   <div class="muted">Example: 83.50</div>
@@ -110,7 +176,7 @@ let data = JSON.parse(localStorage.getItem("kraData")||"[]");
 let employees = JSON.parse(localStorage.getItem("kraEmployees")||'["Ritik","Abhishek","Vipul"]');
 let incentives = JSON.parse(localStorage.getItem("kraIncentives")||"{}");
 
-let manualMode=false,lastKRA=null;
+let manualMode=true,lastKRA=null;
 
 function populateEmployees(){
   employeeName.innerHTML=employeeSelect.innerHTML="";
@@ -180,12 +246,14 @@ function addNewEmployee(){
 
 function renderTable(){
   const emp=employeeName.value;
-  kraTableBody.innerHTML="";
+  const body=kraTableBody;
+  const prevScroll=body.scrollTop;
+  body.innerHTML="";
   let salaryTotal=0,days=new Set();
 
   data.filter(d=>d.name===emp).forEach(d=>{
     salaryTotal+=d.salary;days.add(d.date);
-    kraTableBody.innerHTML+=`
+    body.innerHTML+=`
       <tr>
         <td>${d.date}</td>
         <td>${d.kra}</td>
@@ -196,6 +264,8 @@ function renderTable(){
         </td>
       </tr>`;
   });
+
+  body.scrollTop=prevScroll;
 
   const inc=incentives[emp]||0;
   const gross=salaryTotal+inc;
