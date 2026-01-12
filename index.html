@@ -53,10 +53,12 @@ button{
 }
 button.secondary{background:#777}
 .row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+
 table{
   width:100%;
   border-collapse:collapse;
   margin-top:12px;
+  table-layout:fixed;   /* FIX #1 */
 }
 th,td{
   border:1px solid #333;
@@ -64,12 +66,18 @@ th,td{
   text-align:center;
 }
 
-/* Scroll Table */
+/* Scroll Table — FIX #2 */
 #kraTableBody{
   display:block;
-  max-height:260px;
+  max-height:400px;
   overflow-y:auto;
   border:1px solid #444;
+}
+
+/* Actions column width — FIX #3 */
+td:last-child, th:last-child {
+  width:110px;
+  min-width:110px;
 }
 
 /* Sticky Summary */
@@ -95,7 +103,6 @@ th,td{
 
 <div class="wrap">
 
-<!-- ================= CALCULATOR ================= -->
 <section class="card">
 <h2>Talk Time & KRA Calculator</h2>
 
@@ -106,14 +113,8 @@ th,td{
   <input id="calls" type="number">
 
   <div class="row">
-    <div>
-      <label>Avg Talk Time (Minutes)</label>
-      <input id="minutes" type="number">
-    </div>
-    <div>
-      <label>Avg Talk Time (Seconds)</label>
-      <input id="seconds" type="number" max="59">
-    </div>
+    <div><label>Avg Talk Time (Minutes)</label><input id="minutes" type="number"></div>
+    <div><label>Avg Talk Time (Seconds)</label><input id="seconds" type="number" max="59"></div>
   </div>
 </div>
 
@@ -128,7 +129,6 @@ th,td{
 
 <button style="margin-top:10px" onclick="calculateKRA()">Calculate KRA</button>
 <div class="result" id="kraResult">KRA: —</div>
-
 <hr>
 
 <label>Add Calculated KRA to Employee</label>
@@ -137,7 +137,6 @@ th,td{
 <button onclick="addCalculated()">Add to Dashboard</button>
 </section>
 
-<!-- ================= DASHBOARD ================= -->
 <section class="card">
 <h2>Salary + Incentive Dashboard</h2>
 
@@ -268,7 +267,7 @@ function renderTable(){
   body.scrollTop=prevScroll;
 
   const inc=incentives[emp]||0;
-  const gross=salaryTotal+inc;
+  const gross=+(salaryTotal+inc).toFixed(2); /* FIX floating */
   const tds=+(gross*0.10).toFixed(2);
   const net=+(gross-tds).toFixed(2);
 
@@ -301,6 +300,5 @@ function save(){
   localStorage.setItem("kraIncentives",JSON.stringify(incentives));
 }
 </script>
-
 </body>
 </html>
