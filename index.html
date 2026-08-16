@@ -679,4 +679,4 @@ if(isConfigured){
 async function checkAdminRole(uid, email){
   try{
     const snap = await getDoc(doc(db,'roles',uid));
-    isAdmin = snap.exists() && 
+    isAdmin = snap.exists() &&
