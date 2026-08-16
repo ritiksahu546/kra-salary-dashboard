@@ -520,12 +520,25 @@ td:last-child button{
 </section>
 
 </div><!-- /#appRoot -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, onSnapshot }
-  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script>
+const initializeApp = firebase.initializeApp.bind(firebase);
+const getFirestore = app => firebase.firestore(app);
+const collection = (db, path) => db.collection(path);
+const doc = (db, collectionName, id) => db.collection(collectionName).doc(id);
+const setDoc = (ref, data) => ref.set(data);
+const deleteDoc = ref => ref.delete();
+const getDoc = ref => ref.get();
+const onSnapshot = (ref, cb) => ref.onSnapshot(cb);
+
+const getAuth = app => firebase.auth(app);
+const signInWithEmailAndPassword = (auth, email, pass) => auth.signInWithEmailAndPassword(email, pass);
+const createUserWithEmailAndPassword = (auth, email, pass) => auth.createUserWithEmailAndPassword(email, pass);
+const sendPasswordResetEmail = (auth, email) => auth.sendPasswordResetEmail(email);
+const onAuthStateChanged = (auth, cb) => auth.onAuthStateChanged(cb);
+const signOut = auth => auth.signOut();
 
 /* ================================================================
    ONE-TIME CLOUD SETUP (free, ~5 min) — makes data sync live across
@@ -537,6 +550,12 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, se
    5. Paste it below, replacing the placeholder, then re-share this file
    Until this is filled in, the app runs in LOCAL-ONLY mode (this device only).
    ================================================================ */
+window.addEventListener("error", function(e){
+  if(e && e.message && /firebase/i.test(e.message)){
+    const el=document.getElementById("authErr");
+    if(el) el.innerText="Firebase load nahi hua. Internet connection check karke page refresh karein.";
+  }
+});
 const firebaseConfig = {
   apiKey: "AIzaSyBd53RIl3tagb6Hr2e3fN334szfmQIgDAA",
   authDomain: "pw-kra-calculator.firebaseapp.com",
@@ -648,35 +667,4 @@ window.forgotPassword = async function(){
       document.getElementById('authErr').innerText='Enter a valid email address.';
     }else{
       // Firebase intentionally doesn't reveal whether the email exists (anti-enumeration).
-      document.getElementById('authErr').innerText='If that email has an account, a reset link has been sent.';
-    }
-  }
-};
-
-if(isConfigured){
-  onAuthStateChanged(auth, async (user)=>{
-    if(user){
-      currentUid = user.uid;
-      document.getElementById('authGate').style.display='none';
-      document.getElementById('appRoot').style.display='block';
-      await checkAdminRole(user.uid, user.email);
-      listenCloud();
-    }else{
-      currentUid = null;
-      document.getElementById('authGate').style.display='flex';
-      document.getElementById('appRoot').style.display='none';
-      isAdmin=false;
-    }
-  });
-}else{
-  // No cloud config yet — fall back to open local-only mode so the app is still usable.
-  document.getElementById('authGate').style.display='none';
-  document.getElementById('appRoot').style.display='block';
-  loadLocal();
-  populateEmployees();renderTable();renderOverview();
-}
-
-async function checkAdminRole(uid, email){
-  try{
-    const snap = await getDoc(doc(db,'roles',uid));
-    isAdmin = snap.exists() && 
+      document.getElementById('authErr').innerText='If that email has an account, a reset link has bee
