@@ -520,25 +520,12 @@ td:last-child button{
 </section>
 
 </div><!-- /#appRoot -->
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
-<script>
-const initializeApp = firebase.initializeApp.bind(firebase);
-const getFirestore = app => firebase.firestore(app);
-const collection = (db, path) => db.collection(path);
-const doc = (db, collectionName, id) => db.collection(collectionName).doc(id);
-const setDoc = (ref, data) => ref.set(data);
-const deleteDoc = ref => ref.delete();
-const getDoc = ref => ref.get();
-const onSnapshot = (ref, cb) => ref.onSnapshot(cb);
-
-const getAuth = app => firebase.auth(app);
-const signInWithEmailAndPassword = (auth, email, pass) => auth.signInWithEmailAndPassword(email, pass);
-const createUserWithEmailAndPassword = (auth, email, pass) => auth.createUserWithEmailAndPassword(email, pass);
-const sendPasswordResetEmail = (auth, email) => auth.sendPasswordResetEmail(email);
-const onAuthStateChanged = (auth, cb) => auth.onAuthStateChanged(cb);
-const signOut = auth => auth.signOut();
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 
 /* ================================================================
    ONE-TIME CLOUD SETUP (free, ~5 min) — makes data sync live across
@@ -550,12 +537,6 @@ const signOut = auth => auth.signOut();
    5. Paste it below, replacing the placeholder, then re-share this file
    Until this is filled in, the app runs in LOCAL-ONLY mode (this device only).
    ================================================================ */
-window.addEventListener("error", function(e){
-  if(e && e.message && /firebase/i.test(e.message)){
-    const el=document.getElementById("authErr");
-    if(el) el.innerText="Firebase load nahi hua. Internet connection check karke page refresh karein.";
-  }
-});
 const firebaseConfig = {
   apiKey: "AIzaSyBd53RIl3tagb6Hr2e3fN334szfmQIgDAA",
   authDomain: "pw-kra-calculator.firebaseapp.com",
