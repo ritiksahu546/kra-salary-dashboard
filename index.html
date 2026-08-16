@@ -667,4 +667,322 @@ window.forgotPassword = async function(){
       document.getElementById('authErr').innerText='Enter a valid email address.';
     }else{
       // Firebase intentionally doesn't reveal whether the email exists (anti-enumeration).
-      document.getElementById('authErr').innerText='If that email has an account, a reset link has bee
+      document.getElementById('authErr').innerText='If that email has an account, a reset link has been sent.';
+    }
+  }
+};
+
+if(isConfigured){
+  onAuthStateChanged(auth, async (user)=>{
+    if(user){
+      currentUid = user.uid;
+      document.getElementById('authGate').style.display='none';
+      document.getElementById('appRoot').style.display='block';
+      await checkAdminRole(user.uid, user.email);
+      listenCloud();
+    }else{
+      currentUid = null;
+      document.getElementById('authGate').style.display='flex';
+      document.getElementById('appRoot').style.display='none';
+      isAdmin=false;
+    }
+  });
+}else{
+  // No cloud config yet — fall back to open local-only mode so the app is still usable.
+  document.getElementById('authGate').style.display='none';
+  document.getElementById('appRoot').style.display='block';
+  loadLocal();
+  populateEmployees();renderTable();renderOverview();
+}
+
+async function checkAdminRole(uid, email){
+  try{
+    const snap = await getDoc(doc(db,'roles',uid));
+    isAdmin = snap.exists() && snap.data().role==='admin';
+  }catch(e){
+    isAdmin=false;
+  }
+  const tag=document.getElementById('roleTag');
+  tag.innerText = isAdmin ? '★ ADMIN' : (email||'');
+  tag.style.color = isAdmin ? 'var(--amber)' : 'var(--mute)';
+  renderTable();renderOverview();
+}
+
+/* ---------- Local-only fallback (no Firebase config yet) ---------- */
+function loadLocal(){
+  data = JSON.parse(localStorage.getItem("kraData")||"[]");
+  employees = JSON.parse(localStorage.getItem("kraEmployees")||'["Ritik","Abhishek","Vipul"]');
+  incentives = JSON.parse(localStorage.getItem("kraIncentives")||"{}");
+}
+function saveLocal(){
+  localStorage.setItem("kraData",JSON.stringify(data));
+  localStorage.setItem("kraEmployees",JSON.stringify(employees));
+  localStorage.setItem("kraIncentives",JSON.stringify(incentives));
+}
+
+/* ---------- Live cloud sync (Firestore) ---------- */
+function listenCloud(){
+  onSnapshot(collection(db,"employees"), snap=>{
+    employees = snap.docs.map(d=>d.data().name).sort((a,b)=>a.localeCompare(b));
+    if(employees.length===0){
+      ["Ritik","Abhishek","Vipul"].forEach(n=>setDoc(doc(db,"employees",n),{name:n}));
+    }
+    populateEmployees();renderTable();renderOverview();
+  });
+  onSnapshot(collection(db,"kraEntries"), snap=>{
+    data = snap.docs.map(d=>d.data());
+    renderTable();renderOverview();
+  });
+  onSnapshot(collection(db,"incentives"), snap=>{
+    incentives = {};
+    snap.docs.forEach(d=>{incentives[d.id]=d.data().total;});
+    renderTable();renderOverview();
+  });
+}
+
+function populateEmployees(){
+  const curName=employeeName.value, curSel=employeeSelect.value;
+  employeeName.innerHTML=employeeSelect.innerHTML="";
+  employees.forEach(e=>{
+    employeeName.innerHTML+=`<option>${esc(e)}</option>`;
+    employeeSelect.innerHTML+=`<option>${esc(e)}</option>`;
+  });
+  if(employees.includes(curName))employeeName.value=curName;
+  if(employees.includes(curSel))employeeSelect.value=curSel;
+}
+
+window.toggleMode = function(){
+  manualMode=!manualMode;
+  autoModeBox.style.display=manualMode?"none":"block";
+  manualModeBox.style.display=manualMode?"block":"none";
+  const label=manualMode?"Switch to Auto Talk Time":"Switch to Manual Talk Time";
+  toggleBtn.innerHTML=`<svg viewBox="0 0 16 14"><rect class="bar" x="0" y="5" width="2" height="4"/><rect class="bar" x="4" y="2" width="2" height="10"/><rect class="bar" x="8" y="0" width="2" height="14"/><rect class="bar" x="12" y="4" width="2" height="6"/></svg>${label}`;
+  kraResult.innerText="KRA — —";
+  lastKRA=null;
+};
+
+window.calculateKRA = function(){
+  const cc=+effCC.value;
+  if(!effCC.value||cc<0){alert("Enter Effective CC");return;}
+  let totalMinutes=0;
+  if(manualMode){
+    if(!manualTT.value||+manualTT.value<0){alert("Enter talk time");return;}
+    totalMinutes=+manualTT.value;
+  }else{
+    if(!calls.value||+calls.value<0){alert("Enter calls");return;}
+    const c=+calls.value,m=+minutes.value||0,s=+seconds.value||0;
+    totalMinutes=c*((m*60+s)/60);
+  }
+  // Formula unchanged
+  const kra=((cc/50)*0.5+(totalMinutes/240)*0.5)*100;
+  lastKRA=+kra.toFixed(2);
+  const tier=kraTier(lastKRA);
+  kraResult.innerHTML=`KRA ${lastKRA}% <span class="badge" style="color:${tier.color};margin-left:6px">${tier.label}</span>`;
+};
+
+function salaryFromKRA(k){
+  // Formula/slabs unchanged
+  if(k>=150)return 1100;
+  if(k>=135)return 1000;
+  if(k>=120)return 900;
+  if(k>=100)return 750;
+  if(k>=80)return 500;
+  if(k>=60)return 300;
+  return 0;
+}
+
+// Display-only helper — maps KRA% to a tier label + color for the badge.
+// Boundaries mirror salaryFromKRA() exactly; does not affect any calculation.
+function kraTier(k){
+  if(k>=150)return{label:"Peak",color:"var(--good)"};
+  if(k>=135)return{label:"Excellent",color:"var(--good)"};
+  if(k>=120)return{label:"Strong",color:"var(--signal)"};
+  if(k>=100)return{label:"On Target",color:"var(--signal)"};
+  if(k>=80)return{label:"Fair",color:"var(--amber)"};
+  if(k>=60)return{label:"Low",color:"var(--amber)"};
+  return{label:"Below Min",color:"var(--bad)"};
+}
+
+window.addCalculated = async function(){
+  if(lastKRA===null){alert("Calculate KRA first");return;}
+  const name=employeeSelect.value;
+  let date=kraDate.value||new Date().toISOString().slice(0,10);
+  if(data.some(d=>d.name===name&&d.date===date)){alert("Entry exists");return;}
+  const entry={name,date,kra:lastKRA,salary:salaryFromKRA(lastKRA)};
+  if(isConfigured){
+    entry.ownerUid=currentUid;
+    await setDoc(doc(db,"kraEntries",name+"_"+date),entry);
+  }else{
+    data.push(entry);saveLocal();renderTable();renderOverview();
+  }
+  kraDate.value="";
+};
+
+window.addIncentive = async function(){
+  const sale=+saleInput.value;
+  if(!saleInput.value||sale<=0){alert("Enter a valid sale amount");return;}
+  const emp=employeeName.value;
+  const prev=incentives[emp]||0;
+  const total=+((prev+sale*0.03).toFixed(2));
+  if(isConfigured){
+    await setDoc(doc(db,"incentives",emp),{total});
+  }else{
+    incentives[emp]=total;saveLocal();renderTable();renderOverview();
+  }
+  saleInput.value="";
+};
+
+window.addNewEmployee = async function(){
+  const n=newEmployeeName.value.trim();
+  if(!n||employees.some(e=>e.toLowerCase()===n.toLowerCase())){alert("Invalid/Exists");return;}
+  if(isConfigured){
+    await setDoc(doc(db,"employees",n),{name:n});
+  }else{
+    employees.push(n);saveLocal();populateEmployees();
+  }
+  employeeName.value=employeeSelect.value=n;
+  newEmployeeName.value="";
+  renderTable();renderOverview();
+};
+
+function computeNet(emp){
+  let salaryTotal=0,days=new Set();
+  data.filter(d=>d.name===emp).forEach(d=>{salaryTotal+=d.salary;days.add(d.date);});
+  const inc=incentives[emp]||0;
+  const gross=+(salaryTotal+inc).toFixed(2);
+  const tds=+(gross*0.10).toFixed(2);
+  const net=+(gross-tds).toFixed(2);
+  return{salaryTotal,inc,gross,tds,net,days:days.size};
+}
+
+// A user can modify an entry if they're admin, if the app is running local-only
+// (no auth at all), or if they were the one who originally added that entry.
+function canModify(entry){
+  if(!isConfigured) return true;
+  if(isAdmin) return true;
+  return entry.ownerUid && entry.ownerUid===currentUid;
+}
+
+window.renderTable = function(){
+  const emp=employeeName.value;
+  const body=kraTableBody;
+  const prevScroll=body.scrollTop;
+
+  body.innerHTML="";
+  data.filter(d=>d.name===emp).forEach(d=>{
+    const tier=kraTier(d.kra);
+    const actions = canModify(d)
+      ? `<button class="secondary" onclick="editRow('${esc(d.name)}','${esc(d.date)}')">Edit</button>
+         <button class="secondary" onclick="del('${esc(d.name)}','${esc(d.date)}')">Del</button>`
+      : `<span class="muted" style="font-size:11px">view only</span>`;
+    body.innerHTML+=`
+      <tr>
+        <td>${esc(d.date)}</td>
+        <td><span class="badge" style="color:${tier.color}">${esc(d.kra)}%</span></td>
+        <td>₹${esc(d.salary)}</td>
+        <td>${actions}</td>
+      </tr>`;
+  });
+  body.scrollTop=prevScroll;
+
+  const {salaryTotal,inc,gross,tds,net,days}=computeNet(emp);
+  totalSalary.innerHTML=`
+    Working Days: <b>${days}</b><br>
+    Salary: ₹${salaryTotal}<br>
+    Incentive: ₹${inc}<br><br>
+    <b>Total (Before TDS): ₹${gross}</b><br>
+    <span style="color:var(--bad)">TDS (10%): −₹${tds}</span><br>
+    <span style="color:var(--good);font-size:16px;font-family:var(--display);font-weight:600">
+      Net Pay: ₹${net}
+    </span>
+  `;
+  incInfo.innerText=inc?`Total Incentive: ₹${inc}`:"No incentive added";
+};
+
+function renderOverview(){
+  const body=document.getElementById('overviewBody');
+  if(employees.length===0){body.innerHTML='<div class="muted">No data yet.</div>';return;}
+  body.innerHTML=employees.map(e=>{
+    const {net}=computeNet(e);
+    return `<div class="ov-row"><span class="ov-name">${esc(e)}</span><span class="ov-net">₹${net}</span></div>`;
+  }).join('');
+}
+
+async function removeEntry(n,d){
+  if(isConfigured){
+    await deleteDoc(doc(db,"kraEntries",n+"_"+d));
+  }else{
+    data=data.filter(x=>!(x.name===n&&x.date===d));saveLocal();renderTable();renderOverview();
+  }
+}
+
+window.del = async function(n,d){
+  const entry=data.find(x=>x.name===n&&x.date===d);
+  if(entry && !canModify(entry)){alert("You can only delete your own entries. Ask an admin for others.");return;}
+  if(!confirm(`Delete entry for ${n} on ${d}?`))return;
+  try{
+    await removeEntry(n,d);
+  }catch(e){
+    alert("Delete failed — you may not have permission for this entry.");
+  }
+};
+
+window.editRow = async function(n,d){
+  const i=data.find(x=>x.name===n&&x.date===d);
+  if(!i)return;
+  if(!canModify(i)){alert("You can only edit your own entries. Ask an admin for others.");return;}
+  employeeName.value=employeeSelect.value=n;
+  kraDate.value=d;lastKRA=i.kra;
+  const tier=kraTier(lastKRA);
+  kraResult.innerHTML=`KRA ${lastKRA}% <span class="badge" style="color:${tier.color};margin-left:6px">${tier.label}</span>`;
+  try{
+    await removeEntry(n,d);
+  }catch(e){
+    alert("Edit failed — you may not have permission for this entry.");
+  }
+};
+
+window.exportData = function(){
+  const blob=new Blob([JSON.stringify({data,employees,incentives},null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="kra_dashboard_backup_"+new Date().toISOString().slice(0,10)+".json";
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+window.importData = function(){
+  const input=document.createElement("input");
+  input.type="file";
+  input.accept="application/json";
+  input.onchange=e=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=async evt=>{
+      try{
+        const parsed=JSON.parse(evt.target.result);
+        if(!Array.isArray(parsed.data)||!Array.isArray(parsed.employees)){
+          alert("Invalid backup file");return;
+        }
+        if(isConfigured){
+          for(const emp of parsed.employees) await setDoc(doc(db,"employees",emp),{name:emp});
+          for(const row of parsed.data) await setDoc(doc(db,"kraEntries",row.name+"_"+row.date),row);
+          for(const [emp,total] of Object.entries(parsed.incentives||{})) await setDoc(doc(db,"incentives",emp),{total});
+        }else{
+          data=parsed.data;employees=parsed.employees;incentives=parsed.incentives||{};
+          saveLocal();populateEmployees();renderTable();renderOverview();
+        }
+        alert("Backup imported successfully");
+      }catch(err){
+        alert("Could not read backup file");
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+};
+</script>
+</body>
+</html>
