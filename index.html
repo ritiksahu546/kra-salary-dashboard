@@ -2,27 +2,75 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>KRA + Salary + Incentive + TDS Dashboard</title>
+<title>Signal — KRA & Payroll Ledger</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <style>
+/* ===== Signal Ledger — token system =====
+   bg      #0b0e13  deep slate, near-black but not flat
+   surface #12161e  card surface
+   line    #232a36  hairline borders
+   ink     #e8ecf3  primary text
+   mute    #7c8798  secondary text
+   signal  #22d3c9  teal — primary action / talk-time
+   amber   #f2b134  KRA / performance accent
+   good    #3ddc84  net pay / positive
+   bad     #ff6b6b  TDS / deduction
+*/
 :root{
-  --bg:#0f0f0f;
-  --card:#1b1b1b;
-  --accent:#0b79d0;
-  --green:#16a34a;
-  --red:#b91c1c;
-  --text:#eaeaea;
+  --bg:#0b0e13;
+  --surface:#12161e;
+  --surface-2:#171c26;
+  --line:#232a36;
+  --ink:#e8ecf3;
+  --mute:#7c8798;
+  --signal:#22d3c9;
+  --amber:#f2b134;
+  --good:#3ddc84;
+  --bad:#ff6b6b;
+  --display:'Space Grotesk',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
 }
 
 *{box-sizing:border-box;}
 
 body{
   margin:0;
-  padding:18px;
-  font-family:Arial,system-ui;
-  background:var(--bg);
-  color:var(--text);
+  padding:28px 18px 60px;
+  font-family:var(--body);
+  background:
+    radial-gradient(ellipse 900px 400px at 15% -10%, rgba(34,211,201,.08), transparent 60%),
+    radial-gradient(ellipse 700px 400px at 100% 10%, rgba(242,177,52,.05), transparent 55%),
+    var(--bg);
+  color:var(--ink);
+}
+
+/* ===== Masthead ===== */
+.masthead{
+  max-width:1100px;
+  margin:0 auto 22px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+}
+.mast-mark{flex:none;width:38px;height:38px;}
+.mast-mark svg{width:100%;height:100%;display:block;}
+.mast-text h1{
+  font-family:var(--display);
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:.2px;
+  margin:0;
+}
+.mast-text p{
+  margin:2px 0 0;
+  font-size:12.5px;
+  color:var(--mute);
+  font-family:var(--mono);
+  letter-spacing:.3px;
 }
 
 .wrap{
@@ -34,163 +82,400 @@ body{
 }
 
 .card{
-  background:var(--card);
-  padding:16px;
-  border-radius:10px;
-  box-shadow:0 6px 18px rgba(0,0,0,.4);
+  background:var(--surface);
+  border:1px solid var(--line);
+  padding:20px;
+  border-radius:14px;
+  box-shadow:0 14px 32px rgba(0,0,0,.35);
+  position:relative;
 }
 
-h2,h3{margin:0 0 10px;}
-label{font-size:13px;margin-top:8px;display:block;}
+.card-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  margin-bottom:14px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--line);
+}
+.card-head h2{
+  font-family:var(--display);
+  font-size:16.5px;
+  font-weight:600;
+  margin:0;
+  letter-spacing:.2px;
+}
+.card-eyebrow{
+  font-family:var(--mono);
+  font-size:10.5px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  color:var(--signal);
+}
 
-input,select,button{
-  padding:9px;
-  border:1px solid #444;
+h3{
+  font-family:var(--display);
+  font-size:13.5px;
+  font-weight:600;
+  margin:0 0 10px;
+  color:var(--ink);
+}
+
+label{
+  font-size:12px;
+  margin-top:12px;
+  display:block;
+  color:var(--mute);
+  font-family:var(--mono);
+  letter-spacing:.2px;
+  text-transform:uppercase;
+}
+
+input,select{
+  width:100%;
+  padding:10px 11px;
+  border:1px solid var(--line);
   border-radius:8px;
   font-size:14px;
-  background:#2a2a2a;
-  color:var(--text);
+  background:var(--surface-2);
+  color:var(--ink);
+  font-family:var(--mono);
+  transition:border-color .15s ease, box-shadow .15s ease;
+}
+input:focus,select:focus{
+  outline:none;
+  border-color:var(--signal);
+  box-shadow:0 0 0 3px rgba(34,211,201,.15);
 }
 
 button{
-  background:var(--accent);
-  color:#fff;
-  border:none;
+  padding:10px 14px;
+  border:1px solid transparent;
+  border-radius:8px;
+  font-size:13.5px;
+  font-weight:600;
+  font-family:var(--body);
+  background:var(--signal);
+  color:#04201d;
   cursor:pointer;
+  transition:filter .15s ease, transform .05s ease;
 }
+button:hover{filter:brightness(1.08);}
+button:active{transform:translateY(1px);}
 
-button.secondary{background:#777;}
-.row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+button.secondary{
+  background:transparent;
+  color:var(--ink);
+  border:1px solid var(--line);
+}
+button.secondary:hover{border-color:var(--mute);filter:none;}
 
+.row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.row>input,.row>select{flex:1;min-width:120px;}
 
-/* Table Layout Fix */
+hr{border:none;border-top:1px solid var(--line);margin:16px 0;}
+
+/* ===== Waveform toggle button ===== */
+.mode-toggle{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  background:var(--surface-2);
+  color:var(--signal);
+  border:1px solid var(--line);
+}
+.mode-toggle:hover{border-color:var(--signal);filter:none;}
+.mode-toggle svg{width:16px;height:14px;flex:none;}
+.mode-toggle .bar{fill:var(--signal);}
+
+/* ===== Table ===== */
 table{
   width:100%;
   border-collapse:collapse;
   table-layout:fixed;
-  margin-top:12px;
+  margin-top:4px;
+  font-family:var(--mono);
+  font-size:13px;
 }
 
-table thead, table tbody{
+thead tr{
+  display:table;
+  width:100%;
+  table-layout:fixed;
+}
+thead{
+  display:block;
+  padding-right:8px;
+}
+tbody{
   display:block;
 }
-
-table thead tr, table tbody tr{
+tbody tr{
   display:table;
   width:100%;
   table-layout:fixed;
 }
 
-th, td{
-  border:1px solid #333;
-  height:38px;
-  line-height:38px;
+th{
+  text-align:left;
+  padding:9px 10px;
+  font-family:var(--body);
+  font-size:11px;
+  letter-spacing:.6px;
+  text-transform:uppercase;
+  color:var(--mute);
+  font-weight:600;
+  border-bottom:1px solid var(--line);
+}
+
+td{
+  padding:0 10px;
+  height:40px;
+  line-height:40px;
   vertical-align:middle;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  text-align:center;
+  border-bottom:1px solid var(--line);
+  text-align:left;
 }
+
+tbody tr:hover td{background:rgba(34,211,201,.04);}
 
 /* Actions Column */
 td:last-child, th:last-child{
-  width:110px;
-  min-width:110px;
+  width:112px;
+  min-width:112px;
+  text-align:right;
 }
+th:first-child,td:first-child{width:30%;}
 
 td:last-child button{
-  width:48%;
-  margin:0 1%;
+  padding:5px 8px;
+  font-size:11px;
+  margin-left:4px;
+}
+
+/* KRA tier badge */
+.badge{
+  display:inline-block;
+  padding:2px 8px;
+  border-radius:999px;
+  font-size:11.5px;
+  font-weight:600;
+  border:1px solid currentColor;
 }
 
 /* Scroll area for body */
 #kraTableBody{
-  max-height:350px;
+  max-height:340px;
   overflow-y:auto;
-  border:1px solid #333;
+  border:1px solid var(--line);
+  border-radius:8px;
 }
 
 /* Sticky Summary Section */
 #totalSalary{
   position:sticky;
   bottom:0;
-  background:#111;
-  padding:10px;
-  margin-top:10px;
-  border-top:1px solid #444;
+  background:var(--surface-2);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:14px 16px;
+  margin-top:12px;
+  font-family:var(--mono);
+  font-size:13px;
+  line-height:1.9;
 }
+#totalSalary b{font-family:var(--display);}
 
-.result{margin-top:10px;font-weight:bold;}
-.muted{font-size:13px;color:#aaa;}
+.result{
+  margin-top:12px;
+  font-weight:600;
+  font-family:var(--mono);
+  font-size:15px;
+  color:var(--amber);
+}
+.muted{font-size:12.5px;color:var(--mute);margin-top:6px;}
+
+.toolbar-small{display:flex;gap:8px;margin-top:14px;}
+.toolbar-small button{font-size:11.5px;padding:7px 10px;flex:1;}
 
 @media(max-width:900px){
   .wrap{grid-template-columns:1fr;}
 }
+
+/* ===== Auth gate ===== */
+#authGate{
+  position:fixed;inset:0;
+  background:var(--bg);
+  display:flex;align-items:center;justify-content:center;
+  z-index:100;
+  flex-direction:column;
+  gap:14px;
+  padding:20px;
+}
+#authGate .gate-card{
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:28px;
+  width:100%;
+  max-width:320px;
+  text-align:center;
+}
+#authGate h2{font-family:var(--display);font-size:17px;margin:0 0 4px;}
+#authGate p{color:var(--mute);font-size:12.5px;margin:0 0 16px;}
+#authGate input{margin-bottom:10px;text-align:center;}
+#authErr{color:var(--bad);font-size:12px;min-height:16px;margin-top:6px;}
+
+/* ===== Setup required banner ===== */
+#setupBanner{
+  max-width:1100px;margin:0 auto 16px;
+  background:rgba(242,177,52,.08);
+  border:1px solid rgba(242,177,52,.35);
+  border-radius:10px;
+  padding:12px 16px;
+  font-size:13px;
+  color:var(--amber);
+  display:none;
+}
+#setupBanner code{background:var(--surface-2);padding:1px 5px;border-radius:4px;font-family:var(--mono);}
+
+/* ===== Live status pill ===== */
+.live-pill{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--mono);font-size:10.5px;
+  color:var(--good);margin-left:auto;
+}
+.live-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--good);box-shadow:0 0 6px var(--good);}
+
+/* ===== Overview panel ===== */
+.overview-card{max-width:1100px;margin:18px auto 0;}
+.ov-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 4px;border-bottom:1px solid var(--line);
+  font-family:var(--mono);font-size:13px;
+}
+.ov-row:last-child{border-bottom:none;}
+.ov-name{font-family:var(--body);font-weight:600;color:var(--ink);}
+.ov-net{color:var(--good);font-weight:600;}
 </style>
 </head>
 
 <body>
+
+<!-- ===== Password Gate ===== -->
+<div id="authGate">
+  <div class="gate-card">
+    <h2>🔒 Signal Ledger</h2>
+    <p>Enter the team passcode to continue</p>
+    <input type="password" id="authPass" placeholder="Passcode" onkeydown="if(event.key==='Enter')tryLogin()">
+    <button style="width:100%" onclick="tryLogin()">Enter</button>
+    <div id="authErr"></div>
+  </div>
+</div>
+
+<div id="appRoot" style="display:none">
+
+<div id="setupBanner">
+  ⚠️ <b>Cloud setup pending.</b> Fill your Firebase config inside the <code>&lt;script&gt;</code> at the bottom
+  (search for <code>firebaseConfig</code>) so data can sync live across devices. Until then this runs in
+  local-only mode on this device.
+</div>
+
+<div class="masthead">
+  <div class="mast-mark">
+    <svg viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="19" cy="19" r="18" fill="none" stroke="#232a36" stroke-width="1.5"/>
+      <rect x="9"  y="17" width="3" height="4"  rx="1.5" fill="#3ddc84"/>
+      <rect x="14" y="12" width="3" height="14" rx="1.5" fill="#22d3c9"/>
+      <rect x="19" y="8"  width="3" height="22" rx="1.5" fill="#22d3c9"/>
+      <rect x="24" y="13" width="3" height="12" rx="1.5" fill="#f2b134"/>
+      <rect x="29" y="16" width="3" height="6"  rx="1.5" fill="#7c8798"/>
+    </svg>
+  </div>
+  <div class="mast-text">
+    <h1>Signal</h1>
+    <p>KRA · SALARY · INCENTIVE · TDS LEDGER</p>
+  </div>
+  <span class="live-pill" id="livePill"><span class="dot"></span>LIVE</span>
+</div>
+
 <div class="wrap">
 
 <!-- ========= KRA CALCULATOR ========= -->
 <section class="card">
-<h2>Talk Time & KRA Calculator</h2>
+<div class="card-head">
+  <h2>Talk Time & KRA</h2>
+  <span class="card-eyebrow">Calculator</span>
+</div>
 
-<button id="toggleBtn" onclick="toggleMode()">Switch to Auto Talk Time</button>
+<button id="toggleBtn" class="mode-toggle" onclick="toggleMode()">
+  <svg viewBox="0 0 16 14"><rect class="bar" x="0" y="5" width="2" height="4"/><rect class="bar" x="4" y="2" width="2" height="10"/><rect class="bar" x="8" y="0" width="2" height="14"/><rect class="bar" x="12" y="4" width="2" height="6"/></svg>
+  Switch to Auto Talk Time
+</button>
 
-<div id="autoMode" style="display:none">
+<div id="autoModeBox" style="display:none">
   <label>Calls Handled</label>
-  <input id="calls" type="number">
+  <input id="calls" type="number" min="0">
 
   <div class="row">
     <div>
       <label>Avg Talk Time (Minutes)</label>
-      <input id="minutes" type="number">
+      <input id="minutes" type="number" min="0">
     </div>
     <div>
       <label>Avg Talk Time (Seconds)</label>
-      <input id="seconds" type="number" max="59">
+      <input id="seconds" type="number" min="0" max="59">
     </div>
   </div>
 </div>
 
-<div id="manualMode">
+<div id="manualModeBox">
   <label>Total Talk Time (Minutes)</label>
-  <input id="manualTT" type="number" step="0.01">
+  <input id="manualTT" type="number" step="0.01" min="0">
   <div class="muted">Example: 83.50</div>
 </div>
 
 <label>Effective CC</label>
-<input id="effCC" type="number">
+<input id="effCC" type="number" min="0">
 
-<button style="margin-top:10px;" onclick="calculateKRA()">Calculate KRA</button>
-<div class="result" id="kraResult">KRA: —</div>
+<button style="margin-top:14px;width:100%;" onclick="calculateKRA()">Calculate KRA</button>
+<div class="result" id="kraResult">KRA — —</div>
 <hr>
 
 <label>Add Calculated KRA to Employee</label>
+<div class="row">
 <select id="employeeSelect"></select>
 <input type="date" id="kraDate">
-<button onclick="addCalculated()">Add to Dashboard</button>
+</div>
+<button style="margin-top:10px;width:100%;" onclick="addCalculated()">Add to Dashboard</button>
 </section>
 
 
 <!-- ========= DASHBOARD ========= -->
 <section class="card">
-<h2>Salary + Incentive Dashboard</h2>
+<div class="card-head">
+  <h2>Salary & Incentive</h2>
+  <span class="card-eyebrow">Dashboard</span>
+</div>
 
 <label>Select Employee</label>
 <select id="employeeName" onchange="renderTable()"></select>
 
 <div class="row">
   <input id="newEmployeeName" placeholder="New Employee Name">
-  <button class="secondary" onclick="addNewEmployee()">Add Employee</button>
+  <button class="secondary" onclick="addNewEmployee()">Add</button>
 </div>
 
 <hr>
 
-<h3>Incentive (3% on Sale)</h3>
+<h3>Incentive · 3% on Sale</h3>
 <div class="row">
-  <input id="saleInput" type="number" placeholder="Total Sale ₹">
+  <input id="saleInput" type="number" min="0" placeholder="Total Sale ₹">
   <button onclick="addIncentive()">Add Incentive</button>
 </div>
 <div id="incInfo" class="muted"></div>
@@ -204,50 +489,181 @@ td:last-child button{
 
 <div class="result" id="totalSalary"></div>
 <div class="muted">* 10% TDS deducted on total payout</div>
+
+<div class="toolbar-small">
+  <button class="secondary" onclick="exportData()">Download Backup (JSON)</button>
+  <button class="secondary" onclick="importData()">Import Backup</button>
+</div>
 </section>
 
 </div>
 
-<script>
-let data = JSON.parse(localStorage.getItem("kraData")||"[]");
-let employees = JSON.parse(localStorage.getItem("kraEmployees")||'["Ritik","Abhishek","Vipul"]');
-let incentives = JSON.parse(localStorage.getItem("kraIncentives")||"{}");
+<!-- ========= TEAM OVERVIEW (admin: everyone at a glance) ========= -->
+<section class="card overview-card">
+<div class="card-head">
+  <h2>Team Overview</h2>
+  <span class="card-eyebrow">All Employees · Live</span>
+</div>
+<div id="overviewBody">
+  <div class="muted">No data yet.</div>
+</div>
+</section>
 
-let manualMode=true,lastKRA=null;
+</div><!-- /#appRoot -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot }
+  from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
-function populateEmployees(){
-  employeeName.innerHTML=employeeSelect.innerHTML="";
-  employees.forEach(e=>{
-    employeeName.innerHTML+=`<option>${e}</option>`;
-    employeeSelect.innerHTML+=`<option>${e}</option>`;
+/* ================================================================
+   ONE-TIME CLOUD SETUP (free, ~5 min) — makes data sync live across
+   every phone/laptop instead of staying on one device:
+   1. https://console.firebase.google.com → Add project (free tier is enough)
+   2. Left menu → Build → Firestore Database → Create database → Start in TEST MODE
+   3. Project settings (gear icon, top-left) → scroll to "Your apps" → click Web ( </> )
+   4. Register the app → copy the "firebaseConfig" object it shows you
+   5. Paste it below, replacing the placeholder, then re-share this file
+   Until this is filled in, the app runs in LOCAL-ONLY mode (this device only).
+   ================================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyBd53RIl3tagb6Hr2e3fN334szfmQIgDAA",
+  authDomain: "pw-kra-calculator.firebaseapp.com",
+  projectId: "pw-kra-calculator",
+  storageBucket: "pw-kra-calculator.firebasestorage.app",
+  messagingSenderId: "552099645402",
+  appId: "1:552099645402:web:5915646e89cf71f09762e3"
+};
+
+// Change this to whatever passcode your team should use to open the dashboard.
+// NOTE: this is a basic gate, not real authentication — anyone with the code
+// and the file can enter. Fine for keeping casual eyes out, not for high-security use.
+const PASSCODE = "team2026";
+
+const isConfigured = firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY";
+let db = null;
+
+if (isConfigured) {
+  const app = initializeApp(firebaseConfig);
+  db = getFirestore(app);
+} else {
+  document.getElementById('setupBanner').style.display = 'block';
+  const pill = document.getElementById('livePill');
+  pill.innerHTML = '<span class="dot" style="background:var(--mute);box-shadow:none"></span>LOCAL ONLY';
+  pill.style.color = 'var(--mute)';
+}
+
+let data = [];
+let employees = [];
+let incentives = {};
+let manualMode = true, lastKRA = null;
+
+function esc(str){
+  const d=document.createElement("div");
+  d.textContent=String(str);
+  return d.innerHTML;
+}
+
+/* ---------- Passcode gate ---------- */
+window.tryLogin = function(){
+  const val = document.getElementById('authPass').value;
+  if(val === PASSCODE){
+    localStorage.setItem('signalAuthed','1');
+    document.getElementById('authGate').style.display='none';
+    document.getElementById('appRoot').style.display='block';
+    boot();
+  }else{
+    document.getElementById('authErr').innerText='Wrong passcode, try again.';
+  }
+};
+if(localStorage.getItem('signalAuthed')==='1'){
+  document.getElementById('authGate').style.display='none';
+  document.getElementById('appRoot').style.display='block';
+  boot();
+}
+
+function boot(){
+  if(isConfigured){
+    listenCloud();
+  }else{
+    loadLocal();
+    populateEmployees();renderTable();renderOverview();
+  }
+}
+
+/* ---------- Local-only fallback (no Firebase config yet) ---------- */
+function loadLocal(){
+  data = JSON.parse(localStorage.getItem("kraData")||"[]");
+  employees = JSON.parse(localStorage.getItem("kraEmployees")||'["Ritik","Abhishek","Vipul"]');
+  incentives = JSON.parse(localStorage.getItem("kraIncentives")||"{}");
+}
+function saveLocal(){
+  localStorage.setItem("kraData",JSON.stringify(data));
+  localStorage.setItem("kraEmployees",JSON.stringify(employees));
+  localStorage.setItem("kraIncentives",JSON.stringify(incentives));
+}
+
+/* ---------- Live cloud sync (Firestore) ---------- */
+function listenCloud(){
+  onSnapshot(collection(db,"employees"), snap=>{
+    employees = snap.docs.map(d=>d.data().name).sort((a,b)=>a.localeCompare(b));
+    if(employees.length===0){
+      ["Ritik","Abhishek","Vipul"].forEach(n=>setDoc(doc(db,"employees",n),{name:n}));
+    }
+    populateEmployees();renderTable();renderOverview();
+  });
+  onSnapshot(collection(db,"kraEntries"), snap=>{
+    data = snap.docs.map(d=>d.data());
+    renderTable();renderOverview();
+  });
+  onSnapshot(collection(db,"incentives"), snap=>{
+    incentives = {};
+    snap.docs.forEach(d=>{incentives[d.id]=d.data().total;});
+    renderTable();renderOverview();
   });
 }
-populateEmployees();renderTable();
 
-function toggleMode(){
-  manualMode=!manualMode;
-  autoMode.style.display=manualMode?"none":"block";
-  manualMode.style.display=manualMode?"block":"none";
-  toggleBtn.innerText=manualMode?"Switch to Auto Talk Time":"Switch to Manual Talk Time";
-  kraResult.innerText="KRA: —";
+function populateEmployees(){
+  const curName=employeeName.value, curSel=employeeSelect.value;
+  employeeName.innerHTML=employeeSelect.innerHTML="";
+  employees.forEach(e=>{
+    employeeName.innerHTML+=`<option>${esc(e)}</option>`;
+    employeeSelect.innerHTML+=`<option>${esc(e)}</option>`;
+  });
+  if(employees.includes(curName))employeeName.value=curName;
+  if(employees.includes(curSel))employeeSelect.value=curSel;
 }
 
-function calculateKRA(){
-  const cc=+effCC.value;if(!cc){alert("Enter Effective CC");return;}
+window.toggleMode = function(){
+  manualMode=!manualMode;
+  autoModeBox.style.display=manualMode?"none":"block";
+  manualModeBox.style.display=manualMode?"block":"none";
+  const label=manualMode?"Switch to Auto Talk Time":"Switch to Manual Talk Time";
+  toggleBtn.innerHTML=`<svg viewBox="0 0 16 14"><rect class="bar" x="0" y="5" width="2" height="4"/><rect class="bar" x="4" y="2" width="2" height="10"/><rect class="bar" x="8" y="0" width="2" height="14"/><rect class="bar" x="12" y="4" width="2" height="6"/></svg>${label}`;
+  kraResult.innerText="KRA — —";
+  lastKRA=null;
+};
+
+window.calculateKRA = function(){
+  const cc=+effCC.value;
+  if(!effCC.value||cc<0){alert("Enter Effective CC");return;}
   let totalMinutes=0;
   if(manualMode){
-    totalMinutes=+manualTT.value;if(!totalMinutes){alert("Enter talk time");return;}
+    if(!manualTT.value||+manualTT.value<0){alert("Enter talk time");return;}
+    totalMinutes=+manualTT.value;
   }else{
+    if(!calls.value||+calls.value<0){alert("Enter calls");return;}
     const c=+calls.value,m=+minutes.value||0,s=+seconds.value||0;
-    if(!c){alert("Enter calls");return;}
     totalMinutes=c*((m*60+s)/60);
   }
+  // Formula unchanged
   const kra=((cc/50)*0.5+(totalMinutes/240)*0.5)*100;
   lastKRA=+kra.toFixed(2);
-  kraResult.innerText="KRA: "+lastKRA+"%";
-}
+  const tier=kraTier(lastKRA);
+  kraResult.innerHTML=`KRA ${lastKRA}% <span class="badge" style="color:${tier.color};margin-left:6px">${tier.label}</span>`;
+};
 
 function salaryFromKRA(k){
+  // Formula/slabs unchanged
   if(k>=150)return 1100;
   if(k>=135)return 1000;
   if(k>=120)return 900;
@@ -257,86 +673,177 @@ function salaryFromKRA(k){
   return 0;
 }
 
-function addCalculated(){
+// Display-only helper — maps KRA% to a tier label + color for the badge.
+// Boundaries mirror salaryFromKRA() exactly; does not affect any calculation.
+function kraTier(k){
+  if(k>=150)return{label:"Peak",color:"var(--good)"};
+  if(k>=135)return{label:"Excellent",color:"var(--good)"};
+  if(k>=120)return{label:"Strong",color:"var(--signal)"};
+  if(k>=100)return{label:"On Target",color:"var(--signal)"};
+  if(k>=80)return{label:"Fair",color:"var(--amber)"};
+  if(k>=60)return{label:"Low",color:"var(--amber)"};
+  return{label:"Below Min",color:"var(--bad)"};
+}
+
+window.addCalculated = async function(){
   if(lastKRA===null){alert("Calculate KRA first");return;}
   const name=employeeSelect.value;
   let date=kraDate.value||new Date().toISOString().slice(0,10);
   if(data.some(d=>d.name===name&&d.date===date)){alert("Entry exists");return;}
-  data.push({name,date,kra:lastKRA,salary:salaryFromKRA(lastKRA)});
-  save();renderTable();
-}
+  const entry={name,date,kra:lastKRA,salary:salaryFromKRA(lastKRA)};
+  if(isConfigured){
+    await setDoc(doc(db,"kraEntries",name+"_"+date),entry);
+  }else{
+    data.push(entry);saveLocal();renderTable();renderOverview();
+  }
+  kraDate.value="";
+};
 
-function addIncentive(){
-  const sale=+saleInput.value;if(!sale){alert("Enter sale");return;}
-  incentives[employeeName.value]=+(sale*0.03).toFixed(2);
-  save();renderTable();
-}
+window.addIncentive = async function(){
+  const sale=+saleInput.value;
+  if(!saleInput.value||sale<=0){alert("Enter a valid sale amount");return;}
+  const emp=employeeName.value;
+  const prev=incentives[emp]||0;
+  const total=+((prev+sale*0.03).toFixed(2));
+  if(isConfigured){
+    await setDoc(doc(db,"incentives",emp),{total});
+  }else{
+    incentives[emp]=total;saveLocal();renderTable();renderOverview();
+  }
+  saleInput.value="";
+};
 
-function addNewEmployee(){
+window.addNewEmployee = async function(){
   const n=newEmployeeName.value.trim();
-  if(!n||employees.includes(n)){alert("Invalid/Exists");return;}
-  employees.push(n);save();populateEmployees();
+  if(!n||employees.some(e=>e.toLowerCase()===n.toLowerCase())){alert("Invalid/Exists");return;}
+  if(isConfigured){
+    await setDoc(doc(db,"employees",n),{name:n});
+  }else{
+    employees.push(n);saveLocal();populateEmployees();
+  }
   employeeName.value=employeeSelect.value=n;
   newEmployeeName.value="";
+  renderTable();renderOverview();
+};
+
+function computeNet(emp){
+  let salaryTotal=0,days=new Set();
+  data.filter(d=>d.name===emp).forEach(d=>{salaryTotal+=d.salary;days.add(d.date);});
+  const inc=incentives[emp]||0;
+  const gross=+(salaryTotal+inc).toFixed(2);
+  const tds=+(gross*0.10).toFixed(2);
+  const net=+(gross-tds).toFixed(2);
+  return{salaryTotal,inc,gross,tds,net,days:days.size};
 }
 
-function renderTable(){
+window.renderTable = function(){
   const emp=employeeName.value;
   const body=kraTableBody;
   const prevScroll=body.scrollTop;
 
   body.innerHTML="";
-  let salaryTotal=0,days=new Set();
-
   data.filter(d=>d.name===emp).forEach(d=>{
-    salaryTotal+=d.salary;days.add(d.date);
+    const tier=kraTier(d.kra);
     body.innerHTML+=`
       <tr>
-        <td>${d.date}</td>
-        <td>${d.kra}</td>
-        <td>₹${d.salary}</td>
+        <td>${esc(d.date)}</td>
+        <td><span class="badge" style="color:${tier.color}">${esc(d.kra)}%</span></td>
+        <td>₹${esc(d.salary)}</td>
         <td>
-          <button onclick="editRow('${d.name}','${d.date}')">Edit</button>
-          <button onclick="del('${d.name}','${d.date}')">Delete</button>
+          <button class="secondary" onclick="editRow('${esc(d.name)}','${esc(d.date)}')">Edit</button>
+          <button class="secondary" onclick="del('${esc(d.name)}','${esc(d.date)}')">Del</button>
         </td>
       </tr>`;
   });
-
   body.scrollTop=prevScroll;
 
-  const inc=incentives[emp]||0;
-  const gross=+(salaryTotal+inc).toFixed(2);
-  const tds=+(gross*0.10).toFixed(2);
-  const net=+(gross-tds).toFixed(2);
-
+  const {salaryTotal,inc,gross,tds,net,days}=computeNet(emp);
   totalSalary.innerHTML=`
-    Working Days: <b>${days.size}</b><br>
+    Working Days: <b>${days}</b><br>
     Salary: ₹${salaryTotal}<br>
     Incentive: ₹${inc}<br><br>
     <b>Total (Before TDS): ₹${gross}</b><br>
-    <span style="color:var(--red)">TDS (10%): -₹${tds}</span><br>
-    <span style="color:var(--green);font-size:16px">
-      Net Pay (After TDS): ₹${net}
+    <span style="color:var(--bad)">TDS (10%): −₹${tds}</span><br>
+    <span style="color:var(--good);font-size:16px;font-family:var(--display);font-weight:600">
+      Net Pay: ₹${net}
     </span>
   `;
-  incInfo.innerText=inc?`Incentive Added: ₹${inc}`:"No incentive added";
+  incInfo.innerText=inc?`Total Incentive: ₹${inc}`:"No incentive added";
+};
+
+function renderOverview(){
+  const body=document.getElementById('overviewBody');
+  if(employees.length===0){body.innerHTML='<div class="muted">No data yet.</div>';return;}
+  body.innerHTML=employees.map(e=>{
+    const {net}=computeNet(e);
+    return `<div class="ov-row"><span class="ov-name">${esc(e)}</span><span class="ov-net">₹${net}</span></div>`;
+  }).join('');
 }
 
-function del(n,d){data=data.filter(x=>!(x.name===n&&x.date===d));save();renderTable();}
-function editRow(n,d){
+async function removeEntry(n,d){
+  if(isConfigured){
+    await deleteDoc(doc(db,"kraEntries",n+"_"+d));
+  }else{
+    data=data.filter(x=>!(x.name===n&&x.date===d));saveLocal();renderTable();renderOverview();
+  }
+}
+
+window.del = async function(n,d){
+  if(!confirm(`Delete entry for ${n} on ${d}?`))return;
+  await removeEntry(n,d);
+};
+
+window.editRow = async function(n,d){
   const i=data.find(x=>x.name===n&&x.date===d);
   if(!i)return;
   employeeName.value=employeeSelect.value=n;
   kraDate.value=d;lastKRA=i.kra;
-  kraResult.innerText="KRA: "+lastKRA+"%";
-  del(n,d);
-}
+  const tier=kraTier(lastKRA);
+  kraResult.innerHTML=`KRA ${lastKRA}% <span class="badge" style="color:${tier.color};margin-left:6px">${tier.label}</span>`;
+  await removeEntry(n,d);
+};
 
-function save(){
-  localStorage.setItem("kraData",JSON.stringify(data));
-  localStorage.setItem("kraEmployees",JSON.stringify(employees));
-  localStorage.setItem("kraIncentives",JSON.stringify(incentives));
-}
+window.exportData = function(){
+  const blob=new Blob([JSON.stringify({data,employees,incentives},null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download="kra_dashboard_backup_"+new Date().toISOString().slice(0,10)+".json";
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+window.importData = function(){
+  const input=document.createElement("input");
+  input.type="file";
+  input.accept="application/json";
+  input.onchange=e=>{
+    const file=e.target.files[0];
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=async evt=>{
+      try{
+        const parsed=JSON.parse(evt.target.result);
+        if(!Array.isArray(parsed.data)||!Array.isArray(parsed.employees)){
+          alert("Invalid backup file");return;
+        }
+        if(isConfigured){
+          for(const emp of parsed.employees) await setDoc(doc(db,"employees",emp),{name:emp});
+          for(const row of parsed.data) await setDoc(doc(db,"kraEntries",row.name+"_"+row.date),row);
+          for(const [emp,total] of Object.entries(parsed.incentives||{})) await setDoc(doc(db,"incentives",emp),{total});
+        }else{
+          data=parsed.data;employees=parsed.employees;incentives=parsed.incentives||{};
+          saveLocal();populateEmployees();renderTable();renderOverview();
+        }
+        alert("Backup imported successfully");
+      }catch(err){
+        alert("Could not read backup file");
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+};
 </script>
 </body>
 </html>
