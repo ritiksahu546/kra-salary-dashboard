@@ -372,9 +372,9 @@ td:last-child button{
   <div class="gate-card">
     <h2>🔒 Signal Ledger</h2>
     <p>Sign in with your team email</p>
-    <input type="text" id="authName" placeholder="Your name" style="display:none;">
     <input type="email" id="authEmail" placeholder="Email" autocomplete="username">
     <input type="password" id="authPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')tryLogin()">
+    <input type="password" id="authPassConfirm" placeholder="Confirm password" autocomplete="new-password" style="display:none;" onkeydown="if(event.key==='Enter')tryLogin()">
     <button style="width:100%" id="authActionBtn" onclick="tryLogin()">Sign In</button>
     <div id="authErr"></div>
     <p style="margin-top:14px;">
@@ -485,6 +485,9 @@ td:last-child button{
   <input id="newEmployeeName" placeholder="New Employee Name">
   <button class="secondary" onclick="addNewEmployee()">Add</button>
 </div>
+<div class="muted" style="margin-top:6px;" id="newEmployeeRowHint">
+  Pay cycle runs 11th–10th? <a href="#" onclick="fillCurrentCycle();return false;" style="color:var(--signal);text-decoration:none;font-weight:600;">Use current period name</a>
+</div>
 
 <hr>
 
@@ -538,6 +541,17 @@ td:last-child button{
 </table>
 </section>
 
+<!-- ========= NEW SIGN-UPS — admin only, who has created an account and when ========= -->
+<section class="card overview-card" id="signupsCard" style="display:none;">
+<div class="card-head">
+  <h2>New Sign-ups</h2>
+  <span class="card-eyebrow">Admin · Account Activity · Live</span>
+</div>
+<div id="signupsBody">
+  <div class="muted">No sign-ups yet.</div>
+</div>
+</section>
+
 </div><!-- /#appRoot -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
@@ -584,7 +598,6 @@ let employees = [];
 let incentives = {};
 let manualMode = true, lastKRA = null;
 let isAdmin = false;
-let myEmployeeName = null;
 let currentUid = null;
 
 function esc(str){
@@ -599,7 +612,8 @@ let signUpMode = false;
 window.toggleAuthMode = function(){
   signUpMode = !signUpMode;
   document.getElementById('authErr').innerText='';
-  document.getElementById('authName').style.display = signUpMode ? 'block' : 'none';
+  document.getElementById('authPassConfirm').style.display = signUpMode ? 'block' : 'none';
+  document.getElementById('authPassConfirm').value='';
   document.getElementById('authActionBtn').innerText = signUpMode ? 'Create Account' : 'Sign In';
   document.getElementById('authToggleText').innerText = signUpMode ? 'Already have an account?' : 'New here?';
   document.getElementById('authToggleLink').innerText = signUpMode ? 'Sign in' : 'Create an account';
@@ -612,17 +626,17 @@ window.tryLogin = async function(){
   }
   const email = document.getElementById('authEmail').value.trim();
   const pass = document.getElementById('authPass').value;
-  const name = document.getElementById('authName').value.trim();
+  const confirmPass = document.getElementById('authPassConfirm').value;
   if(!email || !pass){
     document.getElementById('authErr').innerText='Enter email and password.';
     return;
   }
-  if(signUpMode && !name){
-    document.getElementById('authErr').innerText='Enter your name.';
-    return;
-  }
   if(signUpMode && pass.length<6){
     document.getElementById('authErr').innerText='Password must be at least 6 characters.';
+    return;
+  }
+  if(signUpMode && pass!==confirmPass){
+    document.getElementById('authErr').innerText='Passwords do not match.';
     return;
   }
   document.getElementById('authErr').style.color='var(--bad)';
@@ -630,10 +644,10 @@ window.tryLogin = async function(){
   try{
     if(signUpMode){
       const cred = await createUserWithEmailAndPassword(auth, email, pass);
-      const uid = cred.user.uid;
-      // Link this login to a specific employee identity so they only ever see their own data.
-      await setDoc(doc(db,'employees',name), {name}, {merge:true});
-      await setDoc(doc(db,'links',uid), {employeeName:name});
+      // Let admins see who has signed up, and when.
+      try{
+        await setDoc(doc(db,'signups',cred.user.uid),{email,createdAt:new Date().toISOString()});
+      }catch(e){/* non-critical — don't block signup if this fails */}
     }else{
       await signInWithEmailAndPassword(auth, email, pass);
     }
@@ -719,30 +733,17 @@ async function loadIdentity(uid, email){
     isAdmin=false;
   }
 
-  myEmployeeName = null;
-  if(!isAdmin){
-    try{
-      const linkSnap = await getDoc(doc(db,'links',uid));
-      if(linkSnap.exists()) myEmployeeName = linkSnap.data().employeeName;
-    }catch(e){/* no link doc yet */}
-  }
-
   const tag=document.getElementById('roleTag');
-  tag.innerText = isAdmin ? '★ ADMIN' : (myEmployeeName || email || '');
+  tag.innerText = isAdmin ? '★ ADMIN' : (email||'');
   tag.style.color = isAdmin ? 'var(--amber)' : 'var(--mute)';
 
-  // Admin sees everyone + management controls. Employees see only their own data.
-  document.getElementById('employeeSelectRow').style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('newEmployeeRow').style.display = isAdmin ? 'flex' : 'none';
+  // Everyone (admin + employees) can add their own employee records and entries.
+  // Only the team-wide summary panels are admin-exclusive.
+  document.getElementById('employeeSelectRow').style.display='block';
+  document.getElementById('newEmployeeRow').style.display='flex';
   document.getElementById('teamOverviewCard').style.display = isAdmin ? 'block' : 'none';
-  document.getElementById('lockedNameDash').style.display = isAdmin ? 'none' : 'block';
-  document.getElementById('lockedNameCalc').style.display = isAdmin ? 'none' : 'block';
-  document.getElementById('dashboardTitle').innerText = isAdmin ? 'Salary & Incentive' : 'Your Salary';
-  if(!isAdmin){
-    const label = myEmployeeName || '(ask admin to link your account)';
-    document.getElementById('lockedNameDashText').innerText = label;
-    document.getElementById('lockedNameCalcText').innerText = label;
-  }
+  document.getElementById('signupsCard').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('dashboardTitle').innerText='Salary & Incentive';
 
   renderTable();renderOverview();
 }
@@ -778,18 +779,36 @@ function listenCloud(){
       snap.docs.forEach(d=>{incentives[d.id]=d.data().total;});
       renderTable();renderOverview();
     });
+    onSnapshot(collection(db,"signups"), snap=>{
+      const rows = snap.docs.map(d=>d.data()).sort((a,b)=> (a.createdAt<b.createdAt?1:-1));
+      const body=document.getElementById('signupsBody');
+      if(rows.length===0){
+        body.innerHTML='<div class="muted">No sign-ups yet.</div>';
+        return;
+      }
+      body.innerHTML=rows.map(r=>{
+        const when = new Date(r.createdAt).toLocaleString();
+        return `<div class="ov-row"><span class="ov-name">${esc(r.email)}</span><span class="muted" style="font-family:var(--mono);font-size:12px;">${esc(when)}</span></div>`;
+      }).join('');
+    });
   }else{
-    // Employee view: only ever fetch data belonging to their own linked name.
-    if(!myEmployeeName) return; // not linked yet — nothing to show
-    employees = [myEmployeeName];
-    const q = query(collection(db,"kraEntries"), where("name","==",myEmployeeName));
-    onSnapshot(q, snap=>{
+    // Employee (self-service) view: only ever fetch records this login itself created.
+    // A person can create as many named records as they like (e.g. one per month) —
+    // each is scoped to them by ownerUid, invisible to everyone else except admins.
+    const empQ = query(collection(db,"employees"), where("ownerUid","==",currentUid));
+    onSnapshot(empQ, snap=>{
+      employees = snap.docs.map(d=>d.data().name).sort((a,b)=>a.localeCompare(b));
+      populateEmployees();renderTable();
+    });
+    const entriesQ = query(collection(db,"kraEntries"), where("ownerUid","==",currentUid));
+    onSnapshot(entriesQ, snap=>{
       data = snap.docs.map(d=>d.data());
       renderTable();
     });
-    onSnapshot(doc(db,"incentives",myEmployeeName), snap=>{
+    const incQ = query(collection(db,"incentives"), where("ownerUid","==",currentUid));
+    onSnapshot(incQ, snap=>{
       incentives = {};
-      if(snap.exists()) incentives[myEmployeeName]=snap.data().total;
+      snap.docs.forEach(d=>{incentives[d.id]=d.data().total;});
       renderTable();
     });
   }
@@ -858,23 +877,20 @@ function kraTier(k){
   return{label:"Below Min",color:"var(--bad)"};
 }
 
-// Which employee are we currently acting on? Admin picks from the dropdown;
-// a regular employee is always locked to their own linked identity.
-// In local-only mode (no cloud configured yet) there's no auth at all, so
-// the dropdown itself is the source of truth, same as the original app.
+// The employee dropdowns are already scoped correctly by listenCloud() — admins
+// see everyone, regular users only see records they personally created — so we
+// can just read the dropdown value directly, same for everyone.
 function activeEmployee(){
-  if(!isConfigured) return employeeName.value;
-  return isAdmin ? employeeName.value : myEmployeeName;
+  return employeeName.value;
 }
 function activeAddTarget(){
-  if(!isConfigured) return employeeSelect.value;
-  return isAdmin ? employeeSelect.value : myEmployeeName;
+  return employeeSelect.value;
 }
 
 window.addCalculated = async function(){
   if(lastKRA===null){alert("Calculate KRA first");return;}
   const name=activeAddTarget();
-  if(!name){alert(isConfigured&&!isAdmin?"Your account isn't linked to an employee yet — ask your admin.":"Select an employee first");return;}
+  if(!name){alert("Select or add an employee first");return;}
   let date=kraDate.value||new Date().toISOString().slice(0,10);
   if(data.some(d=>d.name===name&&d.date===date)){alert("Entry exists");return;}
   const entry={name,date,kra:lastKRA,salary:salaryFromKRA(lastKRA)};
@@ -891,22 +907,44 @@ window.addIncentive = async function(){
   const sale=+saleInput.value;
   if(!saleInput.value||sale<=0){alert("Enter a valid sale amount");return;}
   const emp=activeEmployee();
-  if(!emp){alert(isConfigured&&!isAdmin?"Your account isn't linked to an employee yet — ask your admin.":"Select an employee first");return;}
+  if(!emp){alert("Select or add an employee first");return;}
   const prev=incentives[emp]||0;
   const total=+((prev+sale*0.03).toFixed(2));
   if(isConfigured){
-    await setDoc(doc(db,"incentives",emp),{total});
+    await setDoc(doc(db,"incentives",emp),{total,ownerUid:currentUid});
   }else{
     incentives[emp]=total;saveLocal();renderTable();renderOverview();
   }
   saleInput.value="";
 };
 
+// Pay cycle runs 11th of one month to 10th of the next (not calendar month).
+// This just fills a suggested name into the "New Employee Name" box —
+// nothing is saved until the user clicks "Add".
+window.fillCurrentCycle = function(){
+  const MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const today=new Date();
+  let startMonth, startYear;
+  if(today.getDate()>=11){
+    startMonth=today.getMonth();
+    startYear=today.getFullYear();
+  }else{
+    startMonth=today.getMonth()-1;
+    startYear=today.getFullYear();
+    if(startMonth<0){startMonth=11;startYear--;}
+  }
+  let endMonth=startMonth+1, endYear=startYear;
+  if(endMonth>11){endMonth=0;endYear++;}
+  const label=`11${MONTHS[startMonth]}-10${MONTHS[endMonth]}${String(endYear).slice(-2)}`;
+  newEmployeeName.value=label;
+  newEmployeeName.focus();
+};
+
 window.addNewEmployee = async function(){
   const n=newEmployeeName.value.trim();
   if(!n||employees.some(e=>e.toLowerCase()===n.toLowerCase())){alert("Invalid/Exists");return;}
   if(isConfigured){
-    await setDoc(doc(db,"employees",n),{name:n});
+    await setDoc(doc(db,"employees",n),{name:n,ownerUid:currentUid});
   }else{
     employees.push(n);saveLocal();populateEmployees();
   }
