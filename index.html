@@ -269,7 +269,7 @@ td:last-child button{
 }
 
 /* Scroll area for body */
-#kraTableBody{
+#kraTableBody, #adminAllBody{
   max-height:340px;
   overflow-y:auto;
   border:1px solid var(--line);
@@ -372,6 +372,7 @@ td:last-child button{
   <div class="gate-card">
     <h2>🔒 Signal Ledger</h2>
     <p>Sign in with your team email</p>
+    <input type="text" id="authName" placeholder="Your name" style="display:none;">
     <input type="email" id="authEmail" placeholder="Email" autocomplete="username">
     <input type="password" id="authPass" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')tryLogin()">
     <button style="width:100%" id="authActionBtn" onclick="tryLogin()">Sign In</button>
@@ -462,6 +463,7 @@ td:last-child button{
 <select id="employeeSelect"></select>
 <input type="date" id="kraDate">
 </div>
+<div id="lockedNameCalc" class="muted" style="display:none;margin-top:6px;">Adding for: <b id="lockedNameCalcText"></b></div>
 <button style="margin-top:10px;width:100%;" onclick="addCalculated()">Add to Dashboard</button>
 </section>
 
@@ -469,14 +471,17 @@ td:last-child button{
 <!-- ========= DASHBOARD ========= -->
 <section class="card">
 <div class="card-head">
-  <h2>Salary & Incentive</h2>
+  <h2 id="dashboardTitle">Salary & Incentive</h2>
   <span class="card-eyebrow">Dashboard</span>
 </div>
 
-<label>Select Employee</label>
-<select id="employeeName" onchange="renderTable()"></select>
+<div id="employeeSelectRow">
+  <label>Select Employee</label>
+  <select id="employeeName" onchange="renderTable()"></select>
+</div>
+<div id="lockedNameDash" class="muted" style="display:none;">Showing: <b id="lockedNameDashText"></b></div>
 
-<div class="row">
+<div class="row" id="newEmployeeRow">
   <input id="newEmployeeName" placeholder="New Employee Name">
   <button class="secondary" onclick="addNewEmployee()">Add</button>
 </div>
@@ -508,8 +513,8 @@ td:last-child button{
 
 </div>
 
-<!-- ========= TEAM OVERVIEW (admin: everyone at a glance) ========= -->
-<section class="card overview-card">
+<!-- ========= TEAM OVERVIEW (admin only: everyone at a glance) ========= -->
+<section class="card overview-card" id="teamOverviewCard" style="display:none;">
 <div class="card-head">
   <h2>Team Overview</h2>
   <span class="card-eyebrow">All Employees · Live</span>
@@ -519,10 +524,24 @@ td:last-child button{
 </div>
 </section>
 
+<!-- ========= ALL ENTRIES — admin only, full raw data across everyone ========= -->
+<section class="card overview-card" id="adminAllCard" style="display:none;">
+<div class="card-head">
+  <h2>All Entries</h2>
+  <span class="card-eyebrow">Admin · Every Employee · Live</span>
+</div>
+<table>
+<thead>
+<tr><th>Employee</th><th>Date</th><th>KRA%</th><th>Salary</th><th>Actions</th></tr>
+</thead>
+<tbody id="adminAllBody"></tbody>
+</table>
+</section>
+
 </div><!-- /#appRoot -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, onSnapshot }
+import { getFirestore, collection, doc, setDoc, deleteDoc, getDoc, onSnapshot, query, where }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -565,6 +584,7 @@ let employees = [];
 let incentives = {};
 let manualMode = true, lastKRA = null;
 let isAdmin = false;
+let myEmployeeName = null;
 let currentUid = null;
 
 function esc(str){
@@ -579,6 +599,7 @@ let signUpMode = false;
 window.toggleAuthMode = function(){
   signUpMode = !signUpMode;
   document.getElementById('authErr').innerText='';
+  document.getElementById('authName').style.display = signUpMode ? 'block' : 'none';
   document.getElementById('authActionBtn').innerText = signUpMode ? 'Create Account' : 'Sign In';
   document.getElementById('authToggleText').innerText = signUpMode ? 'Already have an account?' : 'New here?';
   document.getElementById('authToggleLink').innerText = signUpMode ? 'Sign in' : 'Create an account';
@@ -591,8 +612,13 @@ window.tryLogin = async function(){
   }
   const email = document.getElementById('authEmail').value.trim();
   const pass = document.getElementById('authPass').value;
+  const name = document.getElementById('authName').value.trim();
   if(!email || !pass){
     document.getElementById('authErr').innerText='Enter email and password.';
+    return;
+  }
+  if(signUpMode && !name){
+    document.getElementById('authErr').innerText='Enter your name.';
     return;
   }
   if(signUpMode && pass.length<6){
@@ -603,7 +629,11 @@ window.tryLogin = async function(){
   document.getElementById('authErr').innerText='';
   try{
     if(signUpMode){
-      await createUserWithEmailAndPassword(auth, email, pass);
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      const uid = cred.user.uid;
+      // Link this login to a specific employee identity so they only ever see their own data.
+      await setDoc(doc(db,'employees',name), {name}, {merge:true});
+      await setDoc(doc(db,'links',uid), {employeeName:name});
     }else{
       await signInWithEmailAndPassword(auth, email, pass);
     }
@@ -659,7 +689,7 @@ if(isConfigured){
       currentUid = user.uid;
       document.getElementById('authGate').style.display='none';
       document.getElementById('appRoot').style.display='block';
-      await checkAdminRole(user.uid, user.email);
+      await loadIdentity(user.uid, user.email);
       listenCloud();
     }else{
       currentUid = null;
@@ -670,22 +700,50 @@ if(isConfigured){
   });
 }else{
   // No cloud config yet — fall back to open local-only mode so the app is still usable.
+  // There's no login here, so treat the UI as fully open (like an admin) on this device.
+  isAdmin = true;
+  document.getElementById('employeeSelectRow').style.display='block';
+  document.getElementById('newEmployeeRow').style.display='flex';
+  document.getElementById('teamOverviewCard').style.display='block';
   document.getElementById('authGate').style.display='none';
   document.getElementById('appRoot').style.display='block';
   loadLocal();
   populateEmployees();renderTable();renderOverview();
 }
 
-async function checkAdminRole(uid, email){
+async function loadIdentity(uid, email){
   try{
-    const snap = await getDoc(doc(db,'roles',uid));
-    isAdmin = snap.exists() && snap.data().role==='admin';
+    const roleSnap = await getDoc(doc(db,'roles',uid));
+    isAdmin = roleSnap.exists() && roleSnap.data().role==='admin';
   }catch(e){
     isAdmin=false;
   }
+
+  myEmployeeName = null;
+  if(!isAdmin){
+    try{
+      const linkSnap = await getDoc(doc(db,'links',uid));
+      if(linkSnap.exists()) myEmployeeName = linkSnap.data().employeeName;
+    }catch(e){/* no link doc yet */}
+  }
+
   const tag=document.getElementById('roleTag');
-  tag.innerText = isAdmin ? '★ ADMIN' : (email||'');
+  tag.innerText = isAdmin ? '★ ADMIN' : (myEmployeeName || email || '');
   tag.style.color = isAdmin ? 'var(--amber)' : 'var(--mute)';
+
+  // Admin sees everyone + management controls. Employees see only their own data.
+  document.getElementById('employeeSelectRow').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('newEmployeeRow').style.display = isAdmin ? 'flex' : 'none';
+  document.getElementById('teamOverviewCard').style.display = isAdmin ? 'block' : 'none';
+  document.getElementById('lockedNameDash').style.display = isAdmin ? 'none' : 'block';
+  document.getElementById('lockedNameCalc').style.display = isAdmin ? 'none' : 'block';
+  document.getElementById('dashboardTitle').innerText = isAdmin ? 'Salary & Incentive' : 'Your Salary';
+  if(!isAdmin){
+    const label = myEmployeeName || '(ask admin to link your account)';
+    document.getElementById('lockedNameDashText').innerText = label;
+    document.getElementById('lockedNameCalcText').innerText = label;
+  }
+
   renderTable();renderOverview();
 }
 
@@ -703,22 +761,38 @@ function saveLocal(){
 
 /* ---------- Live cloud sync (Firestore) ---------- */
 function listenCloud(){
-  onSnapshot(collection(db,"employees"), snap=>{
-    employees = snap.docs.map(d=>d.data().name).sort((a,b)=>a.localeCompare(b));
-    if(employees.length===0){
-      ["Ritik","Abhishek","Vipul"].forEach(n=>setDoc(doc(db,"employees",n),{name:n}));
-    }
-    populateEmployees();renderTable();renderOverview();
-  });
-  onSnapshot(collection(db,"kraEntries"), snap=>{
-    data = snap.docs.map(d=>d.data());
-    renderTable();renderOverview();
-  });
-  onSnapshot(collection(db,"incentives"), snap=>{
-    incentives = {};
-    snap.docs.forEach(d=>{incentives[d.id]=d.data().total;});
-    renderTable();renderOverview();
-  });
+  if(isAdmin){
+    onSnapshot(collection(db,"employees"), snap=>{
+      employees = snap.docs.map(d=>d.data().name).sort((a,b)=>a.localeCompare(b));
+      if(employees.length===0){
+        ["Ritik","Abhishek","Vipul"].forEach(n=>setDoc(doc(db,"employees",n),{name:n}));
+      }
+      populateEmployees();renderTable();renderOverview();
+    });
+    onSnapshot(collection(db,"kraEntries"), snap=>{
+      data = snap.docs.map(d=>d.data());
+      renderTable();renderOverview();
+    });
+    onSnapshot(collection(db,"incentives"), snap=>{
+      incentives = {};
+      snap.docs.forEach(d=>{incentives[d.id]=d.data().total;});
+      renderTable();renderOverview();
+    });
+  }else{
+    // Employee view: only ever fetch data belonging to their own linked name.
+    if(!myEmployeeName) return; // not linked yet — nothing to show
+    employees = [myEmployeeName];
+    const q = query(collection(db,"kraEntries"), where("name","==",myEmployeeName));
+    onSnapshot(q, snap=>{
+      data = snap.docs.map(d=>d.data());
+      renderTable();
+    });
+    onSnapshot(doc(db,"incentives",myEmployeeName), snap=>{
+      incentives = {};
+      if(snap.exists()) incentives[myEmployeeName]=snap.data().total;
+      renderTable();
+    });
+  }
 }
 
 function populateEmployees(){
@@ -784,9 +858,23 @@ function kraTier(k){
   return{label:"Below Min",color:"var(--bad)"};
 }
 
+// Which employee are we currently acting on? Admin picks from the dropdown;
+// a regular employee is always locked to their own linked identity.
+// In local-only mode (no cloud configured yet) there's no auth at all, so
+// the dropdown itself is the source of truth, same as the original app.
+function activeEmployee(){
+  if(!isConfigured) return employeeName.value;
+  return isAdmin ? employeeName.value : myEmployeeName;
+}
+function activeAddTarget(){
+  if(!isConfigured) return employeeSelect.value;
+  return isAdmin ? employeeSelect.value : myEmployeeName;
+}
+
 window.addCalculated = async function(){
   if(lastKRA===null){alert("Calculate KRA first");return;}
-  const name=employeeSelect.value;
+  const name=activeAddTarget();
+  if(!name){alert(isConfigured&&!isAdmin?"Your account isn't linked to an employee yet — ask your admin.":"Select an employee first");return;}
   let date=kraDate.value||new Date().toISOString().slice(0,10);
   if(data.some(d=>d.name===name&&d.date===date)){alert("Entry exists");return;}
   const entry={name,date,kra:lastKRA,salary:salaryFromKRA(lastKRA)};
@@ -802,7 +890,8 @@ window.addCalculated = async function(){
 window.addIncentive = async function(){
   const sale=+saleInput.value;
   if(!saleInput.value||sale<=0){alert("Enter a valid sale amount");return;}
-  const emp=employeeName.value;
+  const emp=activeEmployee();
+  if(!emp){alert(isConfigured&&!isAdmin?"Your account isn't linked to an employee yet — ask your admin.":"Select an employee first");return;}
   const prev=incentives[emp]||0;
   const total=+((prev+sale*0.03).toFixed(2));
   if(isConfigured){
@@ -845,7 +934,7 @@ function canModify(entry){
 }
 
 window.renderTable = function(){
-  const emp=employeeName.value;
+  const emp=activeEmployee();
   const body=kraTableBody;
   const prevScroll=body.scrollTop;
 
@@ -881,11 +970,43 @@ window.renderTable = function(){
 };
 
 function renderOverview(){
+  if(!isAdmin) return; // employees never see the team-wide overview
   const body=document.getElementById('overviewBody');
   if(employees.length===0){body.innerHTML='<div class="muted">No data yet.</div>';return;}
   body.innerHTML=employees.map(e=>{
     const {net}=computeNet(e);
     return `<div class="ov-row"><span class="ov-name">${esc(e)}</span><span class="ov-net">₹${net}</span></div>`;
+  }).join('');
+  renderAdminAll();
+}
+
+// Admin-only: every KRA entry from every employee, in one live table.
+function renderAdminAll(){
+  const card=document.getElementById('adminAllCard');
+  const body=document.getElementById('adminAllBody');
+  if(!isAdmin){
+    card.style.display='none';
+    return;
+  }
+  card.style.display='block';
+  if(data.length===0){
+    body.innerHTML='<tr><td colspan="5" class="muted">No entries yet.</td></tr>';
+    return;
+  }
+  const sorted=[...data].sort((a,b)=> a.date===b.date ? a.name.localeCompare(b.name) : (a.date<b.date?1:-1));
+  body.innerHTML=sorted.map(d=>{
+    const tier=kraTier(d.kra);
+    return `
+      <tr>
+        <td>${esc(d.name)}</td>
+        <td>${esc(d.date)}</td>
+        <td><span class="badge" style="color:${tier.color}">${esc(d.kra)}%</span></td>
+        <td>₹${esc(d.salary)}</td>
+        <td>
+          <button class="secondary" onclick="editRow('${esc(d.name)}','${esc(d.date)}')">Edit</button>
+          <button class="secondary" onclick="del('${esc(d.name)}','${esc(d.date)}')">Del</button>
+        </td>
+      </tr>`;
   }).join('');
 }
 
